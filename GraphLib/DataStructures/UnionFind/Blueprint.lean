@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: [your name here]
 -/
 
-import Batteries.Data.UnionFind.Basic
+import Batteries.Data.UnionFind
 import Mathlib.Data.Finset.Sum
 import Mathlib.Data.Nat.Log
 import Mathlib.Tactic

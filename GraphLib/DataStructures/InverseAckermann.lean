@@ -214,14 +214,19 @@ theorem alpha_ackDiag_succ (k : ℕ) : alpha (ackDiag k + 1) = k + 1 := by
   -- By definition of `alpha`, we know that `alpha (ackDiag k + 1) = k + 1`.
   apply le_antisymm;
   · apply alpha_le_iff.mpr;
-    exact Nat.succ_le_of_lt ( ackDiag_strictMono ( Nat.lt_succ_self k ) );
-  · exact Nat.succ_le_of_lt ( lt_of_not_ge fun h => by linarith [ alpha_le_iff.mp h, ackDiag_strictMono.monotone h ] )
+    exact Nat.succ_le_of_lt (ackDiag_strictMono (Nat.lt_succ_self k));
+  · exact Nat.succ_le_of_lt (lt_of_not_ge fun h => by linarith [alpha_le_iff.mp h,
+    ackDiag_strictMono.monotone, h])
 
 /-
 `alpha` composed with `ackDiag` is the identity.
 -/
 theorem alpha_ackDiag (k : ℕ) : alpha (ackDiag k) = k := by
-  exact le_antisymm ( alpha_ackDiag_le _ ) ( Nat.le_of_not_lt fun h => by have := lt_alpha_iff.2 ( show ackDiag ( alpha ( ackDiag k ) ) < ackDiag k from StrictMono.lt_iff_lt ( ackDiag_strictMono ) |>.2 h ) ; aesop )
+  exact le_antisymm (alpha_ackDiag_le _)
+    (Nat.le_of_not_lt fun h => by have := lt_alpha_iff.2
+  (show ackDiag (alpha (ackDiag k)) < ackDiag k from StrictMono.lt_iff_lt (ackDiag_strictMono) |>.2 h)
+   aesop)
+
 
 /-! ### Iterated / levelled inverse (for the full Tarjan analysis)
 
