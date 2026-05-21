@@ -69,7 +69,7 @@ namespace VertexSeq
 /-- The list of vertices visited by the sequence, in order from head to tail. -/
 @[grind] def toList : VertexSeq α → List α
   | .singleton v => [v]
-  | .cons p v => p.toList.cons v
+  | .cons p v => p.toList.concat v
 
 /-- The number of *edges* in the sequence: `0` for a `singleton`, otherwise
 one plus the length of the prefix. -/
@@ -88,23 +88,23 @@ one plus the length of the prefix. -/
   | .cons _ v => v
 
 /-- `head` of a singleton is the lone vertex. -/
-@[simp, grind =] lemma head_singleton (u : α) :
+@[grind =] lemma head_singleton (u : α) :
     (VertexSeq.singleton u).head = u := by simp [head]
 
 /-- `tail` of a singleton is the lone vertex. -/
-@[simp, grind =] lemma tail_singleton (u : α) :
+@[grind =] lemma tail_singleton (u : α) :
     (VertexSeq.singleton u).tail = u := by simp [tail]
 
 /-- `head` is preserved by right-extending `cons`. -/
-@[simp, grind =] lemma head_cons (w : VertexSeq α) (u : α) :
+@[grind =] lemma head_cons (w : VertexSeq α) (u : α) :
     (w.cons u).head = w.head := rfl
 
 /-- `tail` of `cons w u` is the freshly appended vertex `u`. -/
-@[simp, grind =] lemma tail_cons (w : VertexSeq α) (u : α) :
+@[grind =] lemma tail_cons (w : VertexSeq α) (u : α) :
     (w.cons u).tail = u := rfl
 
 /-- The `head` always appears in the underlying list of vertices. -/
-@[simp, grind ←] lemma head_mem_toList (w : VertexSeq α) : w.head ∈ w.toList := by
+@[grind ←] lemma head_mem_toList (w : VertexSeq α) : some w.head = w.toList.head? := by
   induction w <;> grind [VertexSeq.head, VertexSeq.toList]
 
 /-! ## dropHead, dropTail -/
@@ -129,7 +129,7 @@ when it is a singleton). -/
 drop it with `dropTail`). -/
 @[grind] def append : VertexSeq α → VertexSeq α → VertexSeq α
   | w, .singleton v => .cons w v
-  | w, .cons w2 v => .cons (append w w2) v
+  | w, .cons u v => .cons (append w u) v
 
 /-- Reverse a sequence: the head becomes the tail and vice versa. -/
 @[grind] def reverse : VertexSeq α → VertexSeq α
@@ -142,10 +142,6 @@ joining vertex contributing an extra edge). -/
     (p.append q).length = p.length + q.length + 1 := by
   fun_induction append p q <;> grind
 
-/-- Reversing a singleton leaves it unchanged. -/
-@[simp, grind =] lemma reverse_singleton (v : α) :
-    (VertexSeq.singleton v).reverse = .singleton v := rfl
-
 /-- `tail` of an append is the tail of the right operand. -/
 @[simp, grind =] lemma tail_append (p q : VertexSeq α) :
     (p.append q).tail = q.tail := by
@@ -154,26 +150,26 @@ joining vertex contributing an extra edge). -/
 /-- `head` of an append is the head of the left operand. -/
 @[simp, grind =] lemma head_append (p q : VertexSeq α) :
     (p.append q).head = p.head := by
-  fun_induction append <;> simp_all
+  fun_induction append <;> simp_all [head]
 
 /-- Appending a singleton on the right yields `x` as the new tail. -/
 @[simp, grind =] lemma tail_append_singleton (p : VertexSeq α) (x : α) :
     (p.append (.singleton x)).tail = x := by
-  unfold append
-  unfold tail
-  split <;> aesop
+  grind
 
 /-- Appending on the left of a singleton makes `x` the new head. -/
 @[simp, grind =] lemma head_singleton_append (p : VertexSeq α) (x : α) :
     ((VertexSeq.singleton x).append p).head = x := by
-  unfold append
-  unfold head
-  split <;> aesop
+  grind
 
 /-- `append` is associative. -/
 @[simp, grind =] lemma append_assoc (p q r : VertexSeq α) :
     (p.append q).append r = p.append (q.append r) := by
   fun_induction append q r <;> simp_all [append]
+
+/-- Reversing a singleton leaves it unchanged. -/
+@[grind =] lemma reverse_singleton (v : α) :
+    (VertexSeq.singleton v).reverse = .singleton v := rfl
 
 /-- Reverse distributes over `append`, swapping the order of operands. -/
 @[simp, grind =] lemma reverse_append (p q : VertexSeq α) :
@@ -183,22 +179,22 @@ joining vertex contributing an extra edge). -/
 /-- `reverse` is an involution. -/
 @[simp, grind =] lemma reverse_reverse (p : VertexSeq α) :
     p.reverse.reverse = p := by
-  fun_induction reverse p <;> aesop
+  fun_induction reverse p <;> grind
 
 /-- The head of the reverse is the tail of the original. -/
 @[simp, grind =] lemma head_reverse (p : VertexSeq α) :
     p.reverse.head = p.tail := by
-  fun_induction reverse p <;> aesop
+  fun_induction reverse p <;> grind
 
 /-- The tail of the reverse is the head of the original. -/
 @[simp, grind =] lemma tail_reverse (p : VertexSeq α) :
     p.reverse.tail = p.head := by
-  fun_induction reverse p <;> aesop
+  fun_induction reverse p <;> grind
 
 /-- Dropping the tail does not affect the head. -/
 @[simp, grind =] lemma head_dropTail (p : VertexSeq α) :
     p.dropTail.head = p.head := by
-  fun_induction reverse p <;> aesop
+  fun_induction reverse p <;> grind
 
 /-! ## takeUntil, dropUntil, loopErase -/
 
@@ -292,12 +288,12 @@ theorem nodup_loopErase [DecidableEq α] (w : VertexSeq α) :
 /-- `loopErase` preserves the head. -/
 @[simp] lemma head_loopErase [DecidableEq α] (w : VertexSeq α) :
     w.loopErase.head = w.head := by
-  fun_induction loopErase w <;> simp_all
+  fun_induction loopErase w <;> grind
 
 /-- `loopErase` preserves the tail. -/
 @[simp] lemma tail_loopErase [DecidableEq α] (w : VertexSeq α) :
     w.loopErase.tail = w.tail := by
-  fun_induction loopErase w <;> simp_all
+  fun_induction loopErase w <;> grind
 
 end VertexSeq
 
@@ -316,36 +312,22 @@ specialise it by adding an adjacency hypothesis. -/
 grind_pattern IsWalk.singleton => IsWalk (.singleton v)
 grind_pattern IsWalk.cons => IsWalk (.cons w u)
 
-/-- A walk: a `VertexSeq` bundled with a proof that consecutive vertices
-differ. -/
-structure Walk (α : Type*) where
-  /-- The underlying sequence of vertices. -/
-  seq : VertexSeq α
-  /-- Proof that consecutive vertices in `seq` differ. -/
-  valid : IsWalk seq
+/-- A walk is a `VertexSeq` satisfying the `IsWalk` predicate. -/
+def Walk (α : Type*) := { w : VertexSeq α // IsWalk w }
 
 namespace Walk
 open VertexSeq
-
-/-- Two walks are equal iff their underlying sequences agree. -/
-@[ext] lemma ext {w1 w2 : Walk α} (hseq : w1.seq = w2.seq) : w1 = w2 := by
-  cases w1
-  cases w2
-  cases hseq
-  rfl
 
 /-! ## Basic `IsWalk` helper lemmas -/
 
 /-- A `cons` walk has a walk as its prefix. -/
 @[simp, grind =>] lemma isWalk_of_cons (w2 : VertexSeq α) (v : α)
     (valid : IsWalk (w2.cons v)) : IsWalk w2 := by
-  cases valid
   grind
 
 /-- The tail of the prefix of a `cons` walk differs from the new head. -/
 @[simp, grind <=] lemma tail_ne_of_isWalk_cons (w2 : VertexSeq α) (v : α)
     (valid : IsWalk (w2.cons v)) : w2.tail ≠ v := by
-  cases valid
   grind
 
 /-- The concatenation of two walks meeting at distinct endpoints is a walk. -/
@@ -361,12 +343,6 @@ theorem isWalk_singleton_append (p : VertexSeq α) (v : α)
     (h : IsWalk p) (h2 : p.head ≠ v) :
     IsWalk ((VertexSeq.singleton v).append p) := by grind
 
-/-- The reverse of a walk is a walk. -/
-@[grind →, grind ←]
-lemma isWalk_reverse_of (w : VertexSeq α) : IsWalk w → IsWalk w.reverse := by
-  intro h
-  induction h <;> grind
-
 /-- An `append` being a walk implies both factors are walks and the joining
 endpoints differ. -/
 @[grind →]
@@ -374,14 +350,10 @@ theorem isWalk_of_append (p q : VertexSeq α) (h : IsWalk (p.append q)) :
     IsWalk p ∧ IsWalk q ∧ p.tail ≠ q.head := by
   fun_induction append <;> grind
 
-/-- Converse of `isWalk_reverse_of`: if the reverse is a walk, so is the original. -/
-@[grind →]
-lemma isWalk_of_isWalk_reverse (w : VertexSeq α) : IsWalk w.reverse → IsWalk w := by
-  fun_induction reverse <;> grind
-
 /-- `IsWalk` is preserved by reversal in either direction. -/
 @[simp, grind =]
-lemma isWalk_reverse_iff (w : VertexSeq α) : IsWalk w.reverse ↔ IsWalk w := by grind
+lemma isWalk_reverse_iff (w : VertexSeq α) : IsWalk w.reverse ↔ IsWalk w := by
+  fun_induction reverse <;> grind
 
 /-- A sequence with distinct vertices is automatically a walk. -/
 lemma isWalk_of_nodup (w : VertexSeq α) (h : w.toList.Nodup) : IsWalk w := by
@@ -408,10 +380,10 @@ lemma isWalk_loopErase [DecidableEq α] (w : VertexSeq α) : IsWalk w.loopErase 
 /-! ## support, head, tail, length, dropTail for Walk -/
 
 /-- The list of vertices visited by the walk, in order. -/
-@[simp, grind] def support (w : Walk α) : List α := w.seq.toList
+@[simp, grind] def support (w : Walk α) : List α := w.val.toList
 
 /-- The first vertex of the walk. -/
-abbrev head (w : Walk α) : α := w.seq.head
+abbrev head (w : Walk α) : α := w.val.head
 
 /-- The last vertex of the walk. -/
 abbrev tail (w : Walk α) : α := w.seq.tail
@@ -426,7 +398,8 @@ abbrev dropTail (w : Walk α) : Walk α :=
 
 /-- Extend a walk by appending a single vertex `u` distinct from `w.tail`. -/
 def append_single (w : Walk α) (u : α) (h : u ≠ w.tail) : Walk α :=
-  ⟨w.seq.cons u, .cons w.seq u w.valid (by aesop)⟩
+  { seq := w.seq.cons u
+    valid := by grind [Walk]}
 
 /-- `dropTail` preserves the head. -/
 @[simp, grind =]
@@ -507,10 +480,10 @@ absorbed by dropping the tail of `w1`). -/
 /-! ## Path, cycle -/
 
 /-- A path is a walk whose support has no repeated vertices. -/
-@[grind] def IsPath (w : Walk α) : Prop := w.support.Nodup
+@[grind =] def Path (α : Type*) := { w : Walk α // w.support.Nodup }
 
 /-- Erase self-loops from a walk to obtain a path with the same endpoints. -/
-abbrev toPath [DecidableEq α] (w : Walk α) : Walk α :=
+def toPath [DecidableEq α] (w : Walk α) : Path α :=
   { seq := w.seq.loopErase
     valid := isWalk_loopErase w.seq }
 

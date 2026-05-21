@@ -75,6 +75,7 @@ deriving DecidableEq
 /-- A general graph on vertex type `α` with edge labels in `β`. Each edge bundles a label
 and an unordered pair of endpoints. Parallel edges and loops are permitted, and both the
 vertex and edge sets may be infinite. -/
+@[grind]
 structure Graph (α β : Type*) where
   /-- The set of vertices. -/
   vertexSet : Set α
@@ -98,6 +99,7 @@ structure SimpleGraph (α : Type*) where
 /-- A directed graph on vertex type `α` with edge labels in `β`. Each edge bundles a label
 and an ordered pair of endpoints. Parallel edges and loops are permitted, and both the
 vertex and edge sets may be infinite. -/
+@[grind]
 structure DiGraph (α β : Type*) where
   /-- The set of vertices. -/
   vertexSet : Set α
@@ -107,6 +109,7 @@ structure DiGraph (α β : Type*) where
   incidence' : ∀ e ∈ edgeSet, e.endpoints.1 ∈ vertexSet ∧ e.endpoints.2 ∈ vertexSet
 
 /-- A simple directed graph on `α` with edges as ordered pairs of distinct vertices. -/
+@[grind]
 structure SimpleDiGraph (α : Type*) where
   /-- The set of vertices. -/
   vertexSet : Set α
@@ -119,6 +122,7 @@ structure SimpleDiGraph (α : Type*) where
 
 /-- Forget the looplessness axiom of a `SimpleGraph`, viewing it as a `Graph` whose edges
 are `Edge α (Sym2 α)` with the pair as both label and endpoints. -/
+@[grind →]
 def SimpleGraph.toGraph (G : SimpleGraph α) : Graph α (Sym2 α) where
   vertexSet := G.vertexSet
   edgeSet := (fun e => ⟨e, e⟩) '' G.edgeSet
@@ -128,6 +132,7 @@ def SimpleGraph.toGraph (G : SimpleGraph α) : Graph α (Sym2 α) where
 
 /-- Forget the looplessness axiom of a `SimpleDiGraph`, viewing it as a `DiGraph` whose
 edges are `DiEdge α (α × α)` with the pair as both label and endpoints. -/
+@[grind →]
 def SimpleDiGraph.toDiGraph (G : SimpleDiGraph α) : DiGraph α (α × α) where
   vertexSet := G.vertexSet
   edgeSet := (fun e => ⟨e, e⟩) '' G.edgeSet
@@ -138,6 +143,14 @@ def SimpleDiGraph.toDiGraph (G : SimpleDiGraph α) : DiGraph α (α × α) where
 instance : Coe (SimpleGraph α) (Graph α (Sym2 α)) := ⟨SimpleGraph.toGraph⟩
 
 instance : Coe (SimpleDiGraph α) (DiGraph α (α × α)) := ⟨SimpleDiGraph.toDiGraph⟩
+
+class GraphLike (G α : Type*) where
+  /-- The vertex set of the graph. -/
+  vertexSet : G → Set α
+  /-- The edge set of the graph. -/
+  edgeSet : G → Set (Sym2 α)
+
+class DiGraphLike (G : Type*) (Type* α)
 
 /-- Typeclass for graph-like structures that have a vertex set. -/
 class HasVertexSet (G : Type*) (V : outParam Type*) where
