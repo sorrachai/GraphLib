@@ -12,7 +12,7 @@ import GraphAlgorithms.DataStructures.SplayTree.Correctness
 # Splay Tree API for BST
 
 This module provides a high-level API for splaying directly on the `BST` type.
-It encapsulates the raw `BinaryTree` operations and their associated invariant
+It encapsulates the raw `Tree` operations and their associated invariant
 proofs, allowing users to safely and cleanly manipulate BSTs without manually
 re-proving the `IsBST` invariant after every rotation.
 -/
@@ -22,7 +22,7 @@ variable {α : Type} [LinearOrder α]
 namespace SplayTree.BSTAPI
 
 open SplayTree
-open BinaryTree
+open Tree
 
 /-! ### Core Operation -/
 
@@ -37,7 +37,7 @@ def splay (t : BST α) (q : α) : BST α :=
 
 /-- If the underlying BST contains a key, splaying brings it to the root. -/
 theorem splay_root_of_contains (t : BST α) (q : α) (hc : t.contains q) :
-    ∃ l r, (splay t q).tree = .node l q r :=
+    ∃ l r, (splay t q).tree = l △[q] r :=
   SplayTree.splay_root_of_contains t.tree q hc
 
 /-- Splaying preserves the in-order traversal (and therefore the exact elements) of the BST. -/

@@ -26,3 +26,6 @@ scope = "leanprover-community"
 
 [[lean_lib]]
 name = "GraphLib"
+
+[[lean_lib]]
+name = "GraphAlgorithms"
