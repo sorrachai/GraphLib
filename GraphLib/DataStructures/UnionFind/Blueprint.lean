@@ -5,10 +5,11 @@ Authors: [your name here]
 -/
 
 import Batteries.Data.UnionFind
+import Mathlib.Algebra.BigOperators.Group.Finset.Defs
 import Mathlib.Data.Finset.Sum
 import Mathlib.Data.Nat.Log
-import Mathlib.Tactic
-import GraphLib.DataStructures.InverseAckermann
+import Mathlib.Tactic.Linarith
+import GraphLib.DataStructures.InverseAckermann.Basic
 
 /-!
 # `GraphLib.Algorithms.UnionFind`
@@ -16,7 +17,11 @@ import GraphLib.DataStructures.InverseAckermann
 Placeholder. Disjoint-set forests with union-by-rank and path compression.
 -/
 
-
+/-
+The inverse Ackermann function arises naturally in the amortised complexity
+analysis of Union-Find (disjoint-set forests with union-by-rank and path compression),
+where a sequence of `m` operations on `n` elements runs in `O(m · α(n))` time.
+-/
 /-!
 # Union-Find: Blueprint and Roadmap
 
@@ -212,11 +217,11 @@ theorem union_equiv_iff (s : UnionFind) (x y : Fin s.size) (a b : ℕ)
       s.Equiv a b ∨ (s.Equiv a x ∧ s.Equiv b y) ∨ (s.Equiv a y ∧ s.Equiv b x) := by
   convert union_equiv_of_equiv s x y using 1;
   rotate_left;
-  exact b;
-  exact a;
-  rw [ show ( s.union x y ).Equiv a b ↔ ( s.union x y ).Equiv b a from ?_ ];
-  · grind +suggestions;
-  · exact ⟨ fun h => equiv_symm _ h, fun h => equiv_symm _ h ⟩
+  · exact b;
+  · exact a;
+  · rw [ show ( s.union x y ).Equiv a b ↔ ( s.union x y ).Equiv b a from ?_ ];
+    · grind +suggestions;
+    · exact ⟨ fun h => equiv_symm _ h, fun h => equiv_symm _ h ⟩
 
 /-!
 ### 3.4  `push` adds an isolated element
@@ -313,11 +318,15 @@ Maximum rank is at most `⌊log₂ n⌋`.
 -/
 theorem rank_lt_log (s : UnionFind) (x : ℕ) (hx : x < s.size) :
     s.rank x ≤ Nat.log 2 s.size := by
-  refine' Nat.le_log_of_pow_le ( by decide ) _;
-  have h_card : (Finset.univ.filter fun i : Fin s.size => s.rank i = s.rank x).card ≥ 1 := by
-    exact Finset.card_pos.mpr ⟨ ⟨ x, hx ⟩, by aesop ⟩;
-  have := UnionFind.RankInvariant.count_rank_le s ( s.rank x );
-  nlinarith [ Nat.div_mul_le_self s.size ( 2 ^ s.rank x ), Nat.one_le_pow ( s.rank x ) 2 zero_lt_two ]
+  refine Nat.le_log_of_pow_le (by decide) ?_
+  have h_card : 1 ≤ (Finset.univ.filter fun i : Fin s.size => s.rank i = s.rank x).card :=
+    Finset.card_pos.mpr ⟨⟨x, hx⟩, by aesop⟩
+  have h_le := UnionFind.RankInvariant.count_rank_le s (s.rank x)
+  have h_one : 1 ≤ s.size / 2 ^ s.rank x := h_card.trans h_le
+  calc 2 ^ s.rank x
+      = 1 * 2 ^ s.rank x := (one_mul _).symm
+    _ ≤ (s.size / 2 ^ s.rank x) * 2 ^ s.rank x := Nat.mul_le_mul_right _ h_one
+    _ ≤ s.size := Nat.div_mul_le_self _ _
 
 /-!
 ### 4.2  Rank is unchanged by `find`
@@ -377,9 +386,58 @@ A simplified presentation appears in Cormen, Leiserson, Rivest, Stein (CLRS), Ch
 
 An alternative (and arguably cleaner) analysis is given by Seidel & Sharir (2005), who use
 a top-down approach with a simpler potential function. Both yield the same `O(m · α(n))` bound.
+
+Full citations:
+
+* R. E. Tarjan, *Efficiency of a good but not linear set union algorithm*,
+  JACM 22(2), 1975, pp. 215–225.
+* R. E. Tarjan and J. van Leeuwen, *Worst-case analysis of set union algorithms*,
+  JACM 31(2), 1984, pp. 245–281.
+* R. Seidel and M. Sharir, *Top-down analysis of path compression*,
+  SIAM J. Comput. 34(3), 2005, pp. 515–525.
 -/
 
 namespace UnionFind.Potential
+
+/-! ### Iterated / levelled inverse (Tarjan helpers)
+
+For the full Tarjan–van Leeuwen amortised analysis of Union-Find, one needs a
+finer decomposition using iterated applications of `ack`. The *level* of a node
+`x` with rank `r` whose root has rank `R` is
+
+  `level(x) = max { k : ack k r ≤ R }`
+
+and the *index* is
+
+  `index(x) = max { i : ack^[i]_{level(x)} r ≤ R }`.
+
+The two abstract definitions below operate purely on natural-number ranks and
+serve as low-level helpers for `nodeLevel` and `nodeIndex` further down. -/
+
+/-- The *level function* `ufLevel r R` for Union-Find complexity analysis.
+  Given a node rank `r` and the rank of its root `R` (with `r < R`), the level is
+  `max { k ≥ 0 : ack k r ≤ R }`.
+
+  This is well-defined because `ack k r` is strictly increasing in `k` and eventually
+  exceeds any bound. -/
+noncomputable def ufLevel (r R : ℕ) : ℕ :=
+  Nat.find (⟨R, lt_ack_left R r⟩ : ∃ k, R < ack k r) - 1
+
+/-- The *index function* `ufIndex r R k` for Union-Find complexity analysis.
+  Given rank `r`, root rank `R`, and level `k`, the index is
+  `max { i ≥ 1 : (ack k)^[i](r) ≤ R }`. -/
+noncomputable def ufIndex (r R k : ℕ) : ℕ :=
+  Nat.find (⟨R + 1, by
+    have h_ind : ∀ i : ℕ, r + i ≤ (ack k)^[i] r := by
+      intro i
+      induction i with
+      | zero => simp
+      | succ i ih =>
+        rw [Function.iterate_succ_apply']
+        exact Nat.succ_le_of_lt (lt_of_le_of_lt ih (lt_ack_right _ _))
+    have := h_ind (R + 1)
+    omega
+  ⟩ : ∃ i, R < (ack k)^[i] r) - 1
 
 /-!
 ### 5.1  Level and index of a node
@@ -429,7 +487,7 @@ noncomputable def nodeIndex (s : UnionFind) (x : ℕ) : ℕ :=
   - For a root node: `φ(x) = α(n) · rank(x)`
   - For a non-root node: `φ(x) = (α(n) - level(x)) · rank(x) - index(x)` -/
 noncomputable def nodePotential (s : UnionFind) (n : ℕ) (x : ℕ) : ℤ :=
-  let α_n := alpha n
+  let α_n := invAck n
   if s.parent x = x then
     -- Root node
     ↑α_n * ↑(s.rank x)
@@ -452,7 +510,7 @@ theorem potential_nonneg (s : UnionFind) : 0 ≤ potential s := by
 /-- Level of a non-root node is at most `α(n)`. -/
 theorem nodeLevel_le_alpha (s : UnionFind) (x : ℕ) (hx : s.parent x ≠ x)
     (hx_lt : x < s.size) :
-    nodeLevel s x ≤ alpha s.size := by
+    nodeLevel s x ≤ invAck s.size := by
   sorry
 
 /-- Index of a non-root node is at most `rank(x)`. -/
@@ -519,7 +577,7 @@ decreasing_by
   This is the key lemma in the Tarjan analysis. -/
 theorem find_amortised_cost (s : UnionFind) (x : Fin s.size) :
     (findCost s x : ℤ) + Potential.potential (s.find x).1 - Potential.potential s
-      ≤ ↑(alpha s.size) + 2 := by
+      ≤ ↑(invAck s.size) + 2 := by
   sorry
 
 end UnionFind.AmortisedFind
@@ -552,7 +610,7 @@ namespace UnionFind.AmortisedUnion
 theorem link_potential_change (s : UnionFind) (rx ry : Fin s.size)
     (hry : s.parent ry = ry) :
     Potential.potential (s.link rx ry hry) - Potential.potential s
-      ≤ ↑(alpha s.size) := by
+      ≤ ↑(invAck s.size) := by
   sorry
 
 /-- **Main amortised bound for `union`:**
@@ -564,7 +622,7 @@ theorem link_potential_change (s : UnionFind) (rx ry : Fin s.size)
   - `link`:    potential change ≤ `α(n)` -/
 theorem union_amortised_cost (s : UnionFind) (x y : Fin s.size) :
     Potential.potential (s.union x y) - Potential.potential s
-      ≤ 3 * ↑(alpha s.size) + 4 := by
+      ≤ 3 * ↑(invAck s.size) + 4 := by
   sorry
 
 end UnionFind.AmortisedUnion
