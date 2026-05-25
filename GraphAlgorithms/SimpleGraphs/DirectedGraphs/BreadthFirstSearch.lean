@@ -14,7 +14,89 @@ variable {α : Type*} [DecidableEq α]
 
 open SimpleDiGraph
 open Walk
+open Finset
 
+namespace bfsAlgorithm_Tests
+
+/-- Core BFS traversal that computes distances from a fixed root to all vertices.
+    Processes one frontier level per recursive call, accumulating distances in `dist`.
+    Termination is established via the measure `|V(G)| − |visited|`, which decreases
+    strictly at each recursive call because `next` is non-empty and disjoint from `visited`.
+
+    Parameters:
+    - `G`        : the directed graph being searched
+    - `visited`  : the union of all frontier sets processed so far; prevents revisiting.
+                   Carries the invariant `hv : visited ⊆ V(G)` to support termination.
+    - `frontier` : the set of vertices at the current BFS level (distance `d` from root)
+    - `hv`       : proof that `visited ⊆ V(G)`; threaded through each recursive call
+    - `d`        : the distance of the current frontier from the root
+    - `dist`     : accumulated distance map; vertices not yet reached carry `⊤`
+-/
+def bfs (G : SimpleDiGraph α) (visited frontier : Finset α)
+    (hv : visited ⊆ V(G)) -- carry invariant for termination
+    (d : ℕ) (dist : α → ℕ∞) : α → ℕ∞ :=
+  /- *Exhausted*: if `frontier = ∅`, no new vertices are reachable;
+     all remaining vertices are unreachable and retain `⊤` in `dist`. -/
+  if frontier = ∅ then dist
+  else
+    /- *Record*: assign distance `d` to every vertex in the current frontier. -/
+    let dist' := fun v => if v ∈ frontier then (d : ℕ∞) else dist v
+    /- *Expand*: compute `next`, the next frontier, as the out-neighbors of
+       every vertex in `frontier`, minus all already-visited vertices:
+       `next = (⋃ v ∈ frontier, N⁺(G, v)) \ visited` -/
+    let next  := (Finset.biUnion frontier (fun v ↦ N⁺(G, v))) \ visited
+    if next = ∅ then dist'
+    else
+      /- *Recurse*: advance one level — `visited` absorbs `next`,
+         `frontier` becomes `next`, `d` increments by 1. -/
+      bfs G (visited ∪ next) next
+      (by
+        apply Finset.union_subset hv
+        intro x hx
+        obtain ⟨a, -, ha⟩ := Finset.mem_biUnion.mp (Finset.mem_sdiff.mp hx).1
+        exact (Finset.mem_filter.mp ha).1)
+      (d + 1) dist'
+-- Termination measure: the number of vertices not yet in `visited`.
+-- Every recursive call adds the non-empty set `next` to `visited`, so the measure
+-- strictly decreases.  Since `visited ⊆ V(G)` (invariant `hv`), the measure is
+-- bounded below by 0, guaranteeing termination in at most `|V(G)|` rounds.
+termination_by (#V(G)) - visited.card
+decreasing_by
+  rename_i h_next_ne
+  -- `visited ⊆ V(G)` ⟹ `|visited| ≤ |V(G)|`
+  have hle_1 : visited.card ≤ #V(G) := Finset.card_le_card hv
+  -- `next` is defined as `(⋃ v ∈ frontier, N⁺(G,v)) \ visited`, so it is
+  -- disjoint from `visited` by construction.
+  have hdisj : Disjoint visited next :=
+    Finset.disjoint_left.mpr (fun x hxv hxn =>
+      (Finset.mem_sdiff.mp hxn).2 hxv)
+  -- Because `visited` and `next` are disjoint:
+  -- `|visited ∪ next| = |visited| + |next|`
+  have hcard := Finset.card_union_of_disjoint hdisj
+  -- `next ≠ ∅` ⟹ `|next| ≥ 1`, so the new `visited` is strictly larger.
+  have hpos  := (Finset.nonempty_of_ne_empty h_next_ne).card_pos
+  -- `next ⊆ V(G)` (every out-neighbour lies in the vertex set), so
+  -- `visited ∪ next ⊆ V(G)` ⟹ `|visited ∪ next| ≤ |V(G)|`.
+  -- This upper bound is needed so that ℕ-subtraction does not underflow to 0.
+  have hle_2 : (visited ∪ next).card ≤ #V(G) := by
+    apply Finset.card_le_card
+    apply Finset.union_subset hv
+    intro x hx
+    obtain ⟨a, -, ha⟩ := Finset.mem_biUnion.mp (Finset.mem_sdiff.mp hx).1
+    exact (Finset.mem_filter.mp ha).1
+  -- Fold `next` into the goal so that `hcard`, `hpos`, `hle_2` are in terms of
+  -- the same `next` name and `omega` can close the arithmetic goal:
+  -- `|V(G)| − |visited ∪ next|  <  |V(G)| − |visited|`
+  change #V(G) - (visited ∪ next).card < #V(G) - visited.card
+  omega
+
+/-- BFS distance map from `v` to all vertices of `G`.
+    Reachable vertices receive their shortest-path distance (as `(d : ℕ∞)`);
+    unreachable vertices receive `⊤` (infinity). -/
+def bfsDistances (G : SimpleDiGraph α) (v : α) (hv : v ∈ V(G)) : α → ℕ∞ :=
+  bfs G {v} {v} (Finset.singleton_subset_iff.mpr hv) 0 (fun _ => ⊤)
+
+end bfsAlgorithm_Tests
 namespace bfsAlgorithm
 
 /-- Core BFS traversal that computes distances from a fixed root to all vertices.
@@ -31,15 +113,15 @@ namespace bfsAlgorithm
     - `d`        : the distance of the current frontier from the root
     - `dist`     : accumulated distance map; vertices not yet reached carry `⊤`
 -/
-def bfs [Fintype α] (G : SimpleDiGraph α) :
+def bfs (G : SimpleDiGraph α) :
     ℕ → Finset α → Finset α → ℕ → (α → ℕ∞) → (α → ℕ∞)
   /- **Base case** (`n = 0`): counter exhausted — return accumulated `dist` as-is.
      Unreached vertices retain `⊤`. This branch is never reached when `n` is
      initialised to `Fintype.card α`. -/
-  | 0,     _,       _,        _, dist => dist
+  | 0, _, _, _, dist => dist
   /- **Recursion case** when called with arguments
      `(n+1, visited, frontier, d, dist)`, do the following... -/
-  | n + 1, visited, frontier, d, dist =>
+  | n+1, visited, frontier, d, dist =>
     /- *Exhausted*: if `frontier = ∅`, no new vertices are reachable;
        all remaining vertices are unreachable and retain `⊤` in `dist`. -/
     if frontier = ∅ then dist
@@ -174,7 +256,7 @@ namespace bfsCorrectness
 /-- Helper lemma to prove `bfs_complete_aux`:
     Once a vertex is in `visited` and not in the current frontier,
     BFS never changes its recorded distance. -/
-private lemma bfs_stable [Fintype α] (G : SimpleDiGraph α)
+private lemma bfs_stable (G : SimpleDiGraph α)
     (n : ℕ) (visited frontier : Finset α) (d : ℕ) (dist : α → ℕ∞)
     (v : α) (hv_vis : v ∈ visited) (hv_fron : v ∉ frontier) :
     bfsAlgorithm.bfs G n visited frontier d dist v = dist v := by
@@ -511,4 +593,6 @@ theorem bfs_correct [Fintype α] (G : SimpleDiGraph α) (v₁ v₂ : α)
 end bfsCorrectness
 
 -- #TODOs:
--- 1. Try replicate the `UndirectedGraphs.Walk` into the `DirectedGraphs.Walk` -/
+-- 1. etedn bfs to produce a search tree (or forest) and prove its properties
+-- 2. extend to undirected graphs (should be straightforward,
+--    just need to add the reverse edge in the BFS step)
