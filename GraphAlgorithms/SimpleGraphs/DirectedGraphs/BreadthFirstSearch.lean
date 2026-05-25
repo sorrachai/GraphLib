@@ -139,12 +139,12 @@ def bfs (G : SimpleDiGraph α) :
 /-- BFS distance map from `v` to all vertices of `G`.
     Reachable vertices receive their shortest-path distance (as `(d : ℕ∞)`);
     unreachable vertices receive `⊤` (infinity). -/
-def bfsDistances [Fintype α] (G : SimpleDiGraph α) (v : α) : α → ℕ∞ :=
-  bfs G (Fintype.card α) {v} {v} 0 (fun _ => ⊤)
+def bfsDistances (G : SimpleDiGraph α) (v : α) : α → ℕ∞ :=
+  bfs G (#V(G)) {v} {v} 0 (fun _ => ⊤)
 
 /-- The shortest distance from `v₁` to `v₂` in directed graph `G`.
     Returns `⊤` if `v₂` is unreachable from `v₁`. Computed via BFS. -/
-def bfsDistance [Fintype α] (G : SimpleDiGraph α) (v₁ : α) (v₂ : α) : ℕ∞ :=
+def bfsDistance (G : SimpleDiGraph α) (v₁ : α) (v₂ : α) : ℕ∞ :=
   bfsDistances G v₁ v₂
 
 end bfsAlgorithm
@@ -155,11 +155,11 @@ namespace Path
 
 /-- A path is a walk whose support (the list of vertices from VertexSeq.toList)
     has no duplicate vertices — List.Nodup. -/
-def IsPathIn [Fintype α] (G : SimpleDiGraph α) (w : Walk α) : Prop := IsWalkIn G w ∧ w.IsPath
+def IsPathIn (G : SimpleDiGraph α) (w : Walk α) : Prop := IsWalkIn G w ∧ w.IsPath
 
 /-- If w is a simple path (no repeated vertices) in G, and u is any vertex on that path,
     then the portion of the path from u onward is also a simple path in G. -/
-lemma IsPathIn.suffix [Fintype α] (G : SimpleDiGraph α) (w : Walk α) (u : α)
+lemma IsPathIn.suffix (G : SimpleDiGraph α) (w : Walk α) (u : α)
     (hu : u ∈ w.support) (hw : IsPathIn G w) :
     IsPathIn G ⟨w.seq.dropUntil u hu, dropUntil_iswalk w.seq u hu w.valid⟩ := by
   constructor
@@ -205,7 +205,7 @@ lemma IsPathIn.suffix [Fintype α] (G : SimpleDiGraph α) (w : Walk α) (u : α)
 
 /-- Shortest path - analytical definition of distance:
     the length of minimum path between two vertices `v₁` and `v₂` in graph `G` -/
-noncomputable def shortestPath [Fintype α] (G : SimpleDiGraph α) (v₁ : α) (v₂ : α) : ℕ∞ :=
+noncomputable def shortestPath (G : SimpleDiGraph α) (v₁ : α) (v₂ : α) : ℕ∞ :=
   /- ⨅: the indexed infimum (greatest lower bound) operator.
      - `⨅ (x : T), f x` is `iInf f`
      - `⨅ (x : T) (_ : P x), f x` is `iInf (fun x => iInf (fun _ : P x => f x))`,
@@ -280,7 +280,7 @@ private lemma bfs_stable (G : SimpleDiGraph α)
 /-- Helper theorem to prove `bfs_complete`:
     If a simple path of length k ending at v exists whose head lies in frontier
     and whose non-head vertices avoid visited, then BFS records v with distance ≤ d + k. -/
-theorem bfs_complete_aux [Fintype α] (G : SimpleDiGraph α) (v : α)
+theorem bfs_complete_aux (G : SimpleDiGraph α) (v : α)
     (n : ℕ) (visited frontier : Finset α) (d : ℕ) (init_dist : α → ℕ∞)
     (w : Walk α) (hw : Path.IsPathIn G w) (hw_head : w.head ∈ frontier)
     (hw_tail : w.tail = v) (hw_avoid : ∀ x ∈ w.support, x ≠ w.head → x ∉ visited)
@@ -448,23 +448,41 @@ theorem bfs_complete_aux [Fintype α] (G : SimpleDiGraph α) (v : α)
     If a path of length `k` exists from `root` vertex to `v` in `G`,
     then BFS returns `distance ≤ k` for `v`. -/
 @[simp]
-theorem bfs_complete [Fintype α] (G : SimpleDiGraph α) (root : α) (v : α) (k : ℕ)
+theorem bfs_complete (G : SimpleDiGraph α) (root : α) (v : α) (k : ℕ)
     (hk : ∃ w : Walk α, Path.IsPathIn G w ∧ w.head = root ∧ w.tail = v ∧ (w.length : ℕ∞) = k) :
     bfsAlgorithm.bfsDistance G root v ≤ k := by
   obtain ⟨w, hw, hw_head, hw_tail, hw_len⟩ := hk
   rw [← hw_len]
   simp only [bfsAlgorithm.bfsDistance, bfsAlgorithm.bfsDistances]
-  have hn : w.length < Fintype.card α := by
+  have hn : w.length < #V(G) := by
     have h1 : w.support.length = w.length + 1 := by
       simp [Walk.support, VertexSeq.toList_length_eq]
-    have h2 : w.support.length ≤ Fintype.card α := by
+    have hsupp_sub : ∀ x ∈ w.support, x ∈ V(G) := by
+      suffices h : ∀ (ww : Walk α), IsWalkIn G ww → ∀ x ∈ ww.support, x ∈ V(G) from
+        h w hw.1
+      intro ww hww
+      induction hww with
+      | singleton v hv =>
+        intro x hx
+        simp only [support, VertexSeq.toList, List.mem_cons, List.not_mem_nil, or_false] at hx
+        exact hx ▸ hv
+      | cons w' u' hw' hedg ih =>
+        intro x hx
+        simp only [support, append_single, VertexSeq.toList, List.mem_cons] at hx
+        rcases hx with rfl | hx
+        · exact (G.incidence _ hedg).2
+        · exact ih x hx
+    have h2 : w.support.length ≤ #V(G) := by
       have hnd : w.support.Nodup := hw.2
       calc w.support.length
           = w.support.toFinset.card := (List.toFinset_card_of_nodup hnd).symm
-        _ ≤ Finset.univ.card        := Finset.card_le_card (Finset.subset_univ _)
-        _ = Fintype.card α          := Finset.card_univ
+        _ ≤ V(G).card               := by
+              apply Finset.card_le_card
+              intro x hx
+              rw [List.mem_toFinset] at hx
+              exact hsupp_sub x hx
     omega
-  have haux := bfs_complete_aux G v (Fintype.card α) {root} {root} 0 (fun _ => ⊤) w
+  have haux := bfs_complete_aux G v (#V(G)) {root} {root} 0 (fun _ => ⊤) w
     hw
     (Finset.mem_singleton.mpr hw_head)
     hw_tail
@@ -478,7 +496,7 @@ theorem bfs_complete [Fintype α] (G : SimpleDiGraph α) (root : α) (v : α) (k
     If `bfs G n visited frontier d dist v` = k,
     then there exists a valid path in `G` from `root` vertex to `v` of `length k`. -/
 @[simp]
-theorem bfs_sound [Fintype α] (G : SimpleDiGraph α) (root : α) (v : α)
+theorem bfs_sound (G : SimpleDiGraph α) (root : α) (v : α)
     (n : ℕ) (visited frontier : Finset α) (d : ℕ) (init_dist : α → ℕ∞)
     -- INV-1: every distance already in `init_dist` corresponds to a real path from `root`
     (h_dist : ∀ v : α, init_dist v ≠ ⊤ →
@@ -557,7 +575,7 @@ theorem bfs_sound [Fintype α] (G : SimpleDiGraph α) (root : α) (v : α)
           · exact Finset.mem_union_left _ (hw_supp x hx)
       · simp only [h_empty] at hv; exact hv
 
-theorem bfs_correct [Fintype α] (G : SimpleDiGraph α) (v₁ v₂ : α)
+theorem bfs_correct (G : SimpleDiGraph α) (v₁ v₂ : α)
     (h₁ : v₁ ∈ G.vertexSet) :
     bfsAlgorithm.bfsDistance G v₁ v₂ = Path.shortestPath G v₁ v₂ := by
   apply le_antisymm
@@ -572,7 +590,7 @@ theorem bfs_correct [Fintype α] (G : SimpleDiGraph α) (v₁ v₂ : α)
     · rw [hv]; exact le_top
     · simp only [bfsAlgorithm.bfsDistance, bfsAlgorithm.bfsDistances] at hv ⊢
       obtain ⟨w, hw_path, hw_head, hw_tail, hw_len⟩ :=
-        bfs_sound G v₁ v₂ (Fintype.card α) {v₁} {v₁} 0 (fun _ => ⊤)
+        bfs_sound G v₁ v₂ (#V(G)) {v₁} {v₁} 0 (fun _ => ⊤)
           -- h_dist: init_dist = ⊤ everywhere, so hypothesis is vacuous
           (fun u hu => absurd rfl hu)
           -- h_front: singleton walk v₁ → v₁ of length 0
