@@ -4,7 +4,7 @@ import Mathlib.Data.Sym.Sym2
 import Mathlib.Data.Finset.Basic
 
 import GraphAlgorithms.SimpleGraphs.DirectedGraphs.SimpleDiGraphs
-import GraphAlgorithms.SimpleGraphs.DirectedGraphs.Walk  -- already incl. GraphLib.GraphAlgorithms.Core.Walk
+import GraphAlgorithms.SimpleGraphs.DirectedGraphs.Walk  -- already incl. GraphAlgorithms.SimpleGraphs.Walk
 
 -- Breadth-first Search
 -- Author: Huang, JiangYi (nnhjy <43530784+nnhjy@users.noreply.github.com>);
@@ -13,28 +13,24 @@ set_option tactic.hygienic false
 variable {α : Type*} [DecidableEq α]
 
 open SimpleDiGraph
-open Walk
-open Path
+open Walk Path  -- from GraphAlgorithms.SimpleGraphs.DirectedGraphs.Walk
 open Finset
 
 namespace bfsAlgorithm_Tests
 
 /-- Core BFS traversal that computes distances from a fixed root to all vertices.
     Processes one frontier level per recursive call, accumulating distances in `dist`.
-    Termination is established via the measure `|V(G)| − |visited|`, which decreases
-    strictly at each recursive call because `next` is non-empty and disjoint from `visited`.
+    Termination is established via the measure `|V(G) \ visited|`, which decreases
+    strictly at each recursive call because `next` is non-empty and `next ⊆ V(G) \ visited`.
 
     Parameters:
     - `G`        : the directed graph being searched
-    - `visited`  : the union of all frontier sets processed so far; prevents revisiting.
-                   Carries the invariant `hv : visited ⊆ V(G)` to support termination.
+    - `visited`  : the union of all frontier sets processed so far; prevents revisiting
     - `frontier` : the set of vertices at the current BFS level (distance `d` from root)
-    - `hv`       : proof that `visited ⊆ V(G)`; threaded through each recursive call
     - `d`        : the distance of the current frontier from the root
     - `dist`     : accumulated distance map; vertices not yet reached carry `⊤`
 -/
 def bfs (G : SimpleDiGraph α) (visited frontier : Finset α)
-    (hv : visited ⊆ V(G)) -- carry invariant for termination
     (d : ℕ) (dist : α → ℕ∞) : α → ℕ∞ :=
   /- *Exhausted*: if `frontier = ∅`, no new vertices are reachable;
      all remaining vertices are unreachable and retain `⊤` in `dist`. -/
@@ -50,52 +46,53 @@ def bfs (G : SimpleDiGraph α) (visited frontier : Finset α)
     else
       /- *Recurse*: advance one level — `visited` absorbs `next`,
          `frontier` becomes `next`, `d` increments by 1. -/
-      bfs G (visited ∪ next) next
-      (by
-        apply Finset.union_subset hv
-        intro x hx
-        obtain ⟨a, -, ha⟩ := Finset.mem_biUnion.mp (Finset.mem_sdiff.mp hx).1
-        exact (Finset.mem_filter.mp ha).1)
-      (d + 1) dist'
--- Termination measure: the number of vertices not yet in `visited`.
--- Every recursive call adds the non-empty set `next` to `visited`, so the measure
--- strictly decreases.  Since `visited ⊆ V(G)` (invariant `hv`), the measure is
--- bounded below by 0, guaranteeing termination in at most `|V(G)|` rounds.
-termination_by (#V(G)) - visited.card
+      bfs G (visited ∪ next) next (d + 1) dist'
+-- Termination measure: `|V(G) \ visited|`, the number of graph vertices not yet visited.
+-- Every recursive call adds the non-empty set `next` (whose members all lie in V(G) \ visited
+-- because out-neighbours are graph vertices and next excludes visited by construction)
+-- to `visited`, so this measure strictly decreases, guaranteeing termination.
+termination_by (V(G) \ visited).card
 decreasing_by
   rename_i h_next_ne
-  -- `visited ⊆ V(G)` ⟹ `|visited| ≤ |V(G)|`
-  have hle_1 : visited.card ≤ #V(G) := Finset.card_le_card hv
-  -- `next` is defined as `(⋃ v ∈ frontier, N⁺(G,v)) \ visited`, so it is
-  -- disjoint from `visited` by construction.
-  have hdisj : Disjoint visited next :=
-    Finset.disjoint_left.mpr (fun x hxv hxn =>
-      (Finset.mem_sdiff.mp hxn).2 hxv)
-  -- Because `visited` and `next` are disjoint:
-  -- `|visited ∪ next| = |visited| + |next|`
-  have hcard := Finset.card_union_of_disjoint hdisj
-  -- `next ≠ ∅` ⟹ `|next| ≥ 1`, so the new `visited` is strictly larger.
-  have hpos  := (Finset.nonempty_of_ne_empty h_next_ne).card_pos
-  -- `next ⊆ V(G)` (every out-neighbour lies in the vertex set), so
-  -- `visited ∪ next ⊆ V(G)` ⟹ `|visited ∪ next| ≤ |V(G)|`.
-  -- This upper bound is needed so that ℕ-subtraction does not underflow to 0.
-  have hle_2 : (visited ∪ next).card ≤ #V(G) := by
-    apply Finset.card_le_card
-    apply Finset.union_subset hv
-    intro x hx
-    obtain ⟨a, -, ha⟩ := Finset.mem_biUnion.mp (Finset.mem_sdiff.mp hx).1
-    exact (Finset.mem_filter.mp ha).1
-  -- Fold `next` into the goal so that `hcard`, `hpos`, `hle_2` are in terms of
-  -- the same `next` name and `omega` can close the arithmetic goal:
-  -- `|V(G)| − |visited ∪ next|  <  |V(G)| − |visited|`
-  change #V(G) - (visited ∪ next).card < #V(G) - visited.card
-  omega
+  -- Out-neighbours lie in V(G); next also excludes visited, so next ⊆ V(G) \ visited.
+  have hnext_sub : next ⊆ V(G) \ visited :=
+    Finset.subset_sdiff.mpr ⟨
+      fun x hx => by
+        obtain ⟨a, -, ha⟩ := Finset.mem_biUnion.mp (Finset.mem_sdiff.mp hx).1
+        exact (Finset.mem_filter.mp ha).1,
+      Finset.disjoint_left.mpr fun x hxn hxvis =>
+        (Finset.mem_sdiff.mp hxn).2 hxvis⟩
+  -- V(G) \ (visited ∪ next) = (V(G) \ visited) \ next  (standard set identity)
+  have hkey : V(G) \ (visited ∪ next) = (V(G) \ visited) \ next := by
+    ext x; simp only [Finset.mem_sdiff, Finset.mem_union]; tauto
+  -- |(V(G) \ visited) \ next| + |next| = |V(G) \ visited|  (next ⊆ V(G) \ visited,
+  -- disjoint from its sdiff)
+  have hcard : ((V(G) \ visited) \ next).card + next.card = (V(G) \ visited).card := by
+    have hdisj : Disjoint ((V(G) \ visited) \ next) next := disjoint_sdiff_self_left
+    have hunion : (V(G) \ visited) \ next ∪ next = V(G) \ visited := by
+      ext x; simp only [Finset.mem_union, Finset.mem_sdiff]
+      constructor
+      · rintro (⟨h, -⟩ | h)
+        · exact h
+        · exact Finset.mem_sdiff.mp (hnext_sub h)
+      · intro h
+        by_cases hx : x ∈ next
+        · exact Or.inr hx
+        · exact Or.inl ⟨h, hx⟩
+    rw [← Finset.card_union_of_disjoint hdisj, hunion]
+  have hpos : 0 < next.card := (Finset.nonempty_of_ne_empty h_next_ne).card_pos
+  rw [hkey]; omega
 
 /-- BFS distance map from `v` to all vertices of `G`.
     Reachable vertices receive their shortest-path distance (as `(d : ℕ∞)`);
     unreachable vertices receive `⊤` (infinity). -/
-def bfsDistances (G : SimpleDiGraph α) (v : α) (hv : v ∈ V(G)) : α → ℕ∞ :=
-  bfs G {v} {v} (Finset.singleton_subset_iff.mpr hv) 0 (fun _ => ⊤)
+def bfsDistances (G : SimpleDiGraph α) (v : α) : α → ℕ∞ :=
+  bfs G {v} {v} 0 (fun _ => ⊤)
+
+/-- The shortest distance from `v₁` to `v₂` in directed graph `G`.
+    Returns `⊤` if `v₂` is unreachable from `v₁`. Computed via BFS. -/
+def bfsDistance (G : SimpleDiGraph α) (v₁ : α) (v₂ : α) : ℕ∞ :=
+  bfsDistances G v₁ v₂
 
 end bfsAlgorithm_Tests
 namespace bfsAlgorithm
