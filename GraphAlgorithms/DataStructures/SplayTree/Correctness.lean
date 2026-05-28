@@ -175,12 +175,12 @@ section RootOfContainedKey
 /-- If `t.contains q`, the subtree reached by `descend` is a node whose key
 equals `q`. Mirrors how `descend` and `Tree.contains` follow the same
 comparison path. -/
-theorem descend_contains [LinearOrder α] (t : Tree α) (q : α) (h : t.contains q) :
+theorem descend_contains [LinearOrder α] (t : Tree α) (q : α) (h : t.BST_contains q) :
     ∃ l r, (descend t q).1 = l △[q] r := by
   induction t with
-  | nil => simp [contains] at h
+  | nil => simp [BST_contains] at h
   | node k lt rt ihl ihr =>
-    simp only [contains] at h
+    simp only [BST_contains] at h
     by_cases hlt : q < k
     · simp only [hlt, ite_true] at h
       obtain ⟨l', r', hd⟩ := ihl h
@@ -192,6 +192,12 @@ theorem descend_contains [LinearOrder α] (t : Tree α) (q : α) (h : t.contains
         exact ⟨l', r', by rw [descend_node_gt hgt]; exact hd⟩
       · have hqk : q = k := le_antisymm (not_lt.mp hgt) (not_lt.mp hlt)
         subst hqk; exact ⟨lt, rt, by rw [descend_node_eq]⟩
+
+/-- Membership-style variant of `descend_contains`: in a BST, if `q ∈ t` then
+`descend` reaches the node with key `q`. -/
+theorem descend_contains' [LinearOrder α] (t : Tree α) (q : α) (hbst : IsBST t)
+    (h : q ∈ t) : ∃ l r, (descend t q).1 = l △[q] r :=
+  descend_contains t q (mem_imp_contains hbst h)
 
 /-- Splaying a node `c = l △[k] r` upward along any path yields a tree
 whose root key is still `k`. Each rotation step brings `c` one level higher
@@ -218,13 +224,19 @@ theorem splayUp_root_key_of_node :
 
 /-- If `t.contains q`, the bottom-up splay of `t` at `q` has `q` at the root. -/
 theorem splay_root_of_contains [LinearOrder α] (t : Tree α) (q : α)
-    (hc : t.contains q) : ∃ l r, splay t q = l △[q] r := by
+    (hc : t.BST_contains q) : ∃ l r, splay t q = l △[q] r := by
   obtain ⟨lr, rr, hd⟩ := descend_contains t q hc
   unfold splay
   rcases hdecomp : descend t q with ⟨reached, path⟩
   rw [hdecomp] at hd
   subst hd
   exact splayUp_root_key_of_node path lr q rr
+
+/-- Membership-style variant of `splay_root_of_contains`: in a BST, if `q ∈ t`
+then splaying brings `q` to the root. -/
+theorem splay_root_of_contains' [LinearOrder α] (t : Tree α) (q : α)
+    (hbst : IsBST t) (h : q ∈ t) : ∃ l r, splay t q = l △[q] r :=
+  splay_root_of_contains t q (mem_imp_contains hbst h)
 
 end RootOfContainedKey
 
