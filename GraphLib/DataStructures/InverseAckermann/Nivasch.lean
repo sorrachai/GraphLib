@@ -20,16 +20,22 @@ then `invAckNivasch n = min { k | invAckHier k n ≤ 3 }`.
 * `Nivasch.invAckHier`: the slow-growing hierarchy `αₖ`.
 * `Nivasch.invAckNivasch`: Nivasch's `α`, defined via the hierarchy.
 
-## Main results
+## Main results (all `sorry`)
 
-* `invAck_agree_Nivasch` (currently `sorry`): `invAck` and
-  `Nivasch.invAckNivasch` agree up to an additive constant.
+* `invAckNivasch_le_invAck`: `invAckNivasch n ≤ invAck n` (unconditional).
+* `invAck_le_invAckNivasch_add_two`: `invAck n ≤ invAckNivasch n + 2`
+  (depends on `findBdd` fuel being sufficient at every level).
+* `invAck_agree_Nivasch`: the two-sided bound.
+
+The constant `2` is tight: at `n = 4`, `invAck 4 = 2` and
+`invAckNivasch 4 = 0`. The `+2` arises from two structural offsets:
+  - level `0` here is halving, not `log` (Nivasch's `α₁`): one off-by-one;
+  - `bound_k(3)` (the threshold of the `α_k`-hierarchy) lies between
+    `ack k k` and `ack (k+2) (k+2)`: one more off-by-one.
 
 ## Status
 
-Work in progress. Nivasch's writeup only claims agreement up to "a small
-additive constant" without pinning the value; making the constant explicit
-(and proving it) is the goal of this file.
+Work in progress.
 
 ## AI usage
 
@@ -75,10 +81,28 @@ def invAckNivasch (n : ℕ) : ℕ :=
 
 end Nivasch
 
-/-- `invAck` and `Nivasch.invAckNivasch` agree up to an additive constant. -/
-theorem invAck_agree_Nivasch :
-    ∃ C : ℕ, ∀ n : ℕ,
-      ((invAck n : ℤ) - (Nivasch.invAckNivasch n : ℤ)).natAbs ≤ C := by
+/-- Lower bound: `invAckNivasch n ≤ invAck n` for every `n`. Holds even when
+the bounded search inside `invAckHier`/`invAckNivasch` returns the `0`
+fallback, since `0 ≤ invAck n` is trivial. -/
+theorem invAckNivasch_le_invAck (n : ℕ) :
+    Nivasch.invAckNivasch n ≤ invAck n := by
   sorry
+
+/-- Upper bound: `invAck n ≤ invAckNivasch n + 2`. The constant `2` is tight,
+witnessed at `n = 4` where `invAck 4 = 2` and `invAckNivasch 4 = 0`.
+
+This direction depends on the bounded search inside `invAckHier` and
+`invAckNivasch` actually finding the minimum (rather than hitting the `0`
+fallback); see the TODO on `invAckHier`. -/
+theorem invAck_le_invAckNivasch_add_two (n : ℕ) :
+    invAck n ≤ Nivasch.invAckNivasch n + 2 := by
+  sorry
+
+/-- `invAck` and `Nivasch.invAckNivasch` agree pointwise up to the explicit
+constant `2`. The constant is tight (witnessed at `n = 4`). -/
+theorem invAck_agree_Nivasch (n : ℕ) :
+    Nivasch.invAckNivasch n ≤ invAck n ∧
+      invAck n ≤ Nivasch.invAckNivasch n + 2 :=
+  ⟨invAckNivasch_le_invAck n, invAck_le_invAckNivasch_add_two n⟩
 
 end InverseAckermann
