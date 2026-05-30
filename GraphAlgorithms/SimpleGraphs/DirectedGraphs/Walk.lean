@@ -122,4 +122,12 @@ noncomputable def shortestPath (G : SimpleDiGraph α) (v₁ : α) (v₂ : α) : 
 --     shortestPath G s v ≤ shortestPath G s u + 1 := by
 --   sorry
 
+
+/-- Shortest path - analytical definition of distance:
+    the length of minimum path between two vertices `v₁` and `v₂` in graph `G` -/
+noncomputable
+def weighted_distance (G : SimpleDiGraph α) (len : α → α → ℕ) (v₁ : α) (v₂ : α) : ℕ∞ :=
+  ⨅ (w : Walk α) (_ : IsPathIn G w ∧ w.head = v₁ ∧ w.tail = v₂), (w.weighted_length len : ℕ∞)
+
+
 end Path

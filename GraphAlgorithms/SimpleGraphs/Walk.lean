@@ -25,6 +25,9 @@ namespace VertexSeq
   | .singleton _ => 0
   | .cons w _ => 1 + w.length
 
+
+
+
 @[grind] def head : VertexSeq α → α
   | .singleton v => v
   | .cons w _ => head w
@@ -32,6 +35,12 @@ namespace VertexSeq
 @[grind] def tail : VertexSeq α → α
   | .singleton v => v
   | .cons _ v => v
+
+/-- The first node does not count in the sequence. -/
+@[grind] def weighted_length (len : α → α → ℕ) : VertexSeq α → ℕ
+  | .singleton _ => 0
+  | .cons w u => len w.tail u + (weighted_length len w)
+
 
 @[simp, grind =] lemma singleton_head_eq (u : α) :
   (VertexSeq.singleton u).head = u := by simp [head]
@@ -350,6 +359,8 @@ lemma loopErase_iswalk [DecidableEq α] (w : VertexSeq α) : IsWalk w.loopErase 
 abbrev head (w : Walk α) : α := w.seq.head
 abbrev tail (w : Walk α) : α := w.seq.tail
 abbrev length (w : Walk α) : ℕ := w.seq.length
+
+abbrev weighted_length (w : Walk α) (len : α → α → ℕ) : ℕ := VertexSeq.weighted_length len w.seq
 
 abbrev dropTail (w : Walk α) : Walk α :=
   { seq := w.seq.dropTail
