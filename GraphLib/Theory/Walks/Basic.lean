@@ -107,6 +107,18 @@ one plus the length of the prefix. -/
 @[grind ←] lemma head_mem_toList (w : VertexSeq α) : some w.head = w.toList.head? := by
   induction w <;> grind [VertexSeq.head, VertexSeq.toList]
 
+/-- The `head` is a member of the underlying list of vertices. -/
+@[simp, grind] lemma head_mem (w : VertexSeq α) : w.head ∈ w.toList := by
+  induction w with
+  | singleton _ => simp [head, toList]
+  | cons w _ ih => simp [head, toList]; exact Or.inl ih
+
+/-- The `tail` is a member of the underlying list of vertices. -/
+@[simp, grind] lemma tail_mem (w : VertexSeq α) : w.tail ∈ w.toList := by
+  cases w with
+  | singleton _ => simp [tail, toList]
+  | cons _ _ => simp [tail, toList]
+
 /-! ## dropHead, dropTail -/
 
 /-- Drop the first vertex of the sequence (returns the sequence unchanged
@@ -386,40 +398,38 @@ lemma isWalk_loopErase [DecidableEq α] (w : VertexSeq α) : IsWalk w.loopErase 
 abbrev head (w : Walk α) : α := w.val.head
 
 /-- The last vertex of the walk. -/
-abbrev tail (w : Walk α) : α := w.seq.tail
+abbrev tail (w : Walk α) : α := w.val.tail
 
 /-- The number of edges in the walk. -/
-abbrev length (w : Walk α) : ℕ := w.seq.length
+abbrev length (w : Walk α) : ℕ := w.val.length
 
 /-- Drop the last vertex of the walk. -/
 abbrev dropTail (w : Walk α) : Walk α :=
-  { seq := w.seq.dropTail
-    valid := by grind [Walk] }
+  ⟨w.val.dropTail, by grind [Walk]⟩
 
 /-- Extend a walk by appending a single vertex `u` distinct from `w.tail`. -/
 def append_single (w : Walk α) (u : α) (h : u ≠ w.tail) : Walk α :=
-  { seq := w.seq.cons u
-    valid := by grind [Walk]}
+  ⟨w.val.cons u, by grind [Walk]⟩
 
 /-- `dropTail` preserves the head. -/
 @[simp, grind =]
 lemma head_dropTail (w : Walk α) : w.dropTail.head = w.head := by
-  cases w
-  induction valid <;> grind
+  obtain ⟨v, hv⟩ := w
+  induction hv <;> grind
 
 /-- If dropping the tail leaves the tail unchanged, the walk has length zero. -/
 @[simp, grind .]
 lemma length_eq_zero_of_dropTail_tail (w : Walk α) (h : w.dropTail.tail = w.tail) :
     w.length = 0 := by
-  cases w
-  induction valid <;> grind
+  obtain ⟨v, hv⟩ := w
+  induction hv <;> grind
 
 /-- A walk of length zero is a singleton, so its head equals its tail. -/
 @[simp, grind ←]
 lemma head_eq_tail_of_length_zero (w : Walk α) (h : w.length = 0) :
     w.head = w.tail := by
-  cases w
-  induction valid <;> grind
+  obtain ⟨v, hv⟩ := w
+  induction hv <;> grind
 
 /-! ## Walk append, reverse and related lemmas -/
 
@@ -427,9 +437,9 @@ lemma head_eq_tail_of_length_zero (w : Walk α) (h : w.length = 0) :
 is itself a walk. -/
 @[grind ←]
 lemma isWalk_seq_append (w1 w2 : Walk α) (hneq : w1.tail ≠ w2.head) :
-    IsWalk (w1.seq.append w2.seq) := by
-  cases w1
-  cases w2
+    IsWalk (w1.val.append w2.val) := by
+  obtain ⟨_, h1⟩ := w1
+  obtain ⟨_, h2⟩ := w2
   grind
 
 /-- Concatenate two walks meeting at a shared vertex (`w1.tail = w2.head`).
@@ -438,14 +448,12 @@ The duplicated joining vertex is collapsed by dropping the tail of `w1`. -/
 def append (w1 w2 : Walk α) (h : w1.tail = w2.head) : Walk α :=
   if h1 : w1.length = 0 then w2
   else
-    { seq := w1.dropTail.seq.append w2.seq
-      valid := by grind [Walk] }
+    ⟨w1.dropTail.val.append w2.val, by grind [Walk]⟩
 
 /-- Reverse a walk: head and tail are swapped. -/
 @[grind =]
 def reverse (w : Walk α) : Walk α :=
-  { seq := w.seq.reverse
-    valid := by grind [Walk] }
+  ⟨w.val.reverse, by grind [Walk]⟩
 
 /-- The head of a reversed walk is the original tail. -/
 @[simp, grind =] lemma head_reverse (w : Walk α) :
@@ -458,8 +466,8 @@ def reverse (w : Walk α) : Walk α :=
 /-- The head of an append is the head of the left walk. -/
 @[simp, grind =] lemma head_append (w1 w2 : Walk α) (h : w1.tail = w2.head) :
     (Walk.append w1 w2 h).head = w1.head := by
-  cases w1
-  induction valid <;> grind
+  obtain ⟨_, hv⟩ := w1
+  induction hv <;> grind
 
 /-- The tail of an append is the tail of the right walk. -/
 @[simp, grind =] lemma tail_append (w1 w2 : Walk α) (h : w1.tail = w2.head) :
@@ -473,37 +481,56 @@ absorbed by dropping the tail of `w1`). -/
   by_cases h1 : w1.length = 0
   · grind
   · have hdrop : w1.dropTail.length + 1 = w1.length := by
-      cases w1
-      induction valid <;> grind
+      obtain ⟨_, hv⟩ := w1
+      induction hv <;> grind
     grind
 
 /-! ## Path, cycle -/
 
-/-- A path is a walk whose support has no repeated vertices. -/
-@[grind =] def Path (α : Type*) := { w : Walk α // w.support.Nodup }
+/-- A walk is a *path* when its support has no repeated vertices. -/
+def IsPath (w : Walk α) : Prop := w.val.toList.Nodup
+
+/-- A path is a walk satisfying `IsPath`. -/
+def Path (α : Type*) := { w : Walk α // IsPath w }
+
+/-- The underlying walk of a path coerces to the path itself. -/
+abbrev Path.head (p : Path α) : α := p.val.head
+abbrev Path.tail (p : Path α) : α := p.val.tail
+abbrev Path.length (p : Path α) : ℕ := p.val.length
+abbrev Path.support (p : Path α) : List α := p.val.support
 
 /-- Erase self-loops from a walk to obtain a path with the same endpoints. -/
 def toPath [DecidableEq α] (w : Walk α) : Path α :=
-  { seq := w.seq.loopErase
-    valid := isWalk_loopErase w.seq }
+  ⟨⟨w.val.loopErase, isWalk_loopErase w.val⟩, by
+    unfold IsPath; simpa using nodup_loopErase w.val⟩
 
 /-- `toPath` always produces a path. -/
-theorem toPath_isPath [DecidableEq α] (w : Walk α) : IsPath (toPath w) := by
-  unfold IsPath toPath support
-  simpa using nodup_loopErase w.seq
+theorem toPath_isPath [DecidableEq α] (w : Walk α) : IsPath (toPath w).val := by
+  unfold IsPath toPath
+  simpa using nodup_loopErase w.val
 
 /-- `toPath` preserves the tail. -/
 lemma tail_toPath [DecidableEq α] (w : Walk α) : (toPath w).tail = w.tail := by
-  grind [tail_loopErase]
+  show (toPath w).val.val.tail = w.val.tail
+  grind [tail_loopErase, toPath]
 
 /-- `toPath` preserves the head. -/
 lemma head_toPath [DecidableEq α] (w : Walk α) : (toPath w).head = w.head := by
-  grind [head_loopErase]
+  show (toPath w).val.val.head = w.val.head
+  grind [head_loopErase, toPath]
 
-/-- A cycle is a walk of length at least 3 whose endpoints coincide and whose
-interior (the walk with its last vertex dropped) is a path. -/
+/-- A walk is a *cycle* if it has length at least 3, its endpoints coincide,
+and the walk obtained by dropping its last vertex is a path. -/
 def IsCycle (w : Walk α) : Prop :=
   3 ≤ w.length ∧ w.head = w.tail ∧ IsPath w.dropTail
+
+/-- A cycle is a walk satisfying `IsCycle`. -/
+def Cycle (α : Type*) := { w : Walk α // IsCycle w }
+
+abbrev Cycle.head (c : Cycle α) : α := c.val.head
+abbrev Cycle.tail (c : Cycle α) : α := c.val.tail
+abbrev Cycle.length (c : Cycle α) : ℕ := c.val.length
+abbrev Cycle.support (c : Cycle α) : List α := c.val.support
 
 /-! ## Some more helper lemmas -/
 
@@ -531,13 +558,13 @@ vertex `u ∈ w.support` and its suffix from `u`. -/
 @[simp, grind →] lemma eq_append_takeUntil_dropUntil [DecidableEq α]
     (w : Walk α) (u : α) (hu : u ∈ w.support) :
     w = Walk.append
-      ⟨w.seq.takeUntil u hu, isWalk_takeUntil w.seq u hu w.valid⟩
-      ⟨w.seq.dropUntil u hu, isWalk_dropUntil w.seq u hu w.valid⟩
+      ⟨w.val.takeUntil u hu, isWalk_takeUntil w.val u hu w.property⟩
+      ⟨w.val.dropUntil u hu, isWalk_dropUntil w.val u hu w.property⟩
       (by grind) := by
   by_cases h : u = w.head
-  · ext
+  · apply Subtype.ext
     grind
-  · ext
+  · apply Subtype.ext
     grind
 
 /-! ## Re-rooting a cycle -/
@@ -546,16 +573,17 @@ vertex `u ∈ w.support` and its suffix from `u`. -/
 @[simp, grind] def rerootCycle [DecidableEq α] (w : Walk α) (hcyc : IsCycle w)
     (u : α) (hu : u ∈ w.support) : Walk α :=
   Walk.append
-    ⟨w.seq.dropUntil u hu, isWalk_dropUntil w.seq u hu w.valid⟩
-    ⟨w.seq.takeUntil u hu, isWalk_takeUntil w.seq u hu w.valid⟩
+    ⟨w.val.dropUntil u hu, isWalk_dropUntil w.val u hu w.property⟩
+    ⟨w.val.takeUntil u hu, isWalk_takeUntil w.val u hu w.property⟩
     (by
       rcases hcyc with ⟨_, hht, _⟩
       grind)
 
-/-- `toList` of an append is the concatenation in reverse order (since `cons`
-extends on the right). -/
+/-- `toList` of an `append` concatenates the two lists in order. Because
+`cons` extends on the right, the right operand's vertices follow the left
+operand's. -/
 @[simp, grind =] lemma toList_append (p q : VertexSeq α) :
-    (p.append q).toList = q.toList ++ p.toList := by
+    (p.append q).toList = p.toList ++ q.toList := by
   induction q generalizing p <;> grind
 
 /-- Dropping the tail commutes with `append` as long as the right walk is not
@@ -565,9 +593,9 @@ lemma dropTail_append (w1 w2 : Walk α) (h : w1.tail = w2.head)
     (Walk.append w1 w2 h).dropTail = Walk.append w1 w2.dropTail (by grind) := by
   by_cases h1 : w1.length = 0
   · grind
-  · ext
-    cases w2
-    induction valid <;> grind
+  · apply Subtype.ext
+    obtain ⟨_, hv⟩ := w2
+    induction hv <;> grind
 
 /-- Re-rooting a cycle at any vertex on it yields another cycle. -/
 lemma isCycle_rerootCycle [DecidableEq α] (w : Walk α) (hcyc : IsCycle w)
@@ -581,6 +609,10 @@ lemma isCycle_rerootCycle [DecidableEq α] (w : Walk α) (hcyc : IsCycle w)
   · by_cases h : u = w.head
     · have hz : w.length ≠ 0 := by omega
       grind
-    · grind [dropTail_append]
+    · grind [dropTail_append, IsPath, support, Walk.append,
+              VertexSeq.toList, head_dropTail,
+              VertexSeq.tail_takeUntil, VertexSeq.head_dropUntil,
+              VertexSeq.tail_dropUntil, VertexSeq.head_takeUntil,
+              toList_append, dropTail_takeUntil_append_dropUntil]
 
 end Walk

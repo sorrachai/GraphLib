@@ -36,7 +36,7 @@ with a subgraph predicate and an induced-subgraph constructor.
   before downstream files have any use for it.
 * **Compare structure fields, not projections.** For the labelled types
   `Graph` and `DiGraph`, we compare the underlying `edgeSet : Set (Edge α β)`
-  / `Set (DiEdge α β)` rather than the `E(G)` projection to `Sym2 α`
+  / `Set (Arc α β)` rather than the `E(G)` projection to `Sym2 α`
   / `α × α`. Two parallel edges with different labels are distinct in
   the labelled world, and `subgraphOf` should respect that.
 * **Induced on a `Set`, intersected with `V(G)`.** Vertex sets are
@@ -70,7 +70,7 @@ contained in those of `G`. -/
 
 /-- `H` is a *subgraph* of `G` when its vertex set and edge set are both
 contained in those of `G`. Edge comparison uses the underlying
-`DiEdge α β`-valued field, so parallel edges with different labels are
+`Arc α β`-valued field, so parallel edges with different labels are
 treated as distinct. -/
 @[grind] def DiGraph.subgraphOf (H G : DiGraph α β) : Prop :=
   H.vertexSet ⊆ G.vertexSet ∧ H.edgeSet ⊆ G.edgeSet
@@ -130,10 +130,6 @@ def SimpleDiGraph.induce (G : SimpleDiGraph α) (S : Set α) : SimpleDiGraph α 
   loopless' := by
     rintro e ⟨he, _, _⟩
     exact G.loopless' e he
-
-notation G[S]
-
-notation G ≤ H
 
 section Notation
 

@@ -143,18 +143,18 @@ open VertexSeq
 
 /-- The set of edges traversed by the walk `w`, defined to be the edge set
 of its underlying vertex sequence. -/
-abbrev edgeSet (w : Walk α) : Set (Sym2 α) := w.seq.edgeSet
+abbrev edgeSet (w : Walk α) : Set (Sym2 α) := w.val.edgeSet
 
 /-- Loop-erasing a walk only drops edges: the edge set of `w.toPath` is
 contained in the edge set of `w`. -/
-lemma edgeSet_toPath_subset (w : Walk α) : w.toPath.edgeSet ⊆ w.edgeSet := by
-  simpa [edgeSet] using VertexSeq.edgeSet_loopErase_subset w.seq
+lemma edgeSet_toPath_subset (w : Walk α) : w.toPath.val.edgeSet ⊆ w.edgeSet := by
+  simpa [edgeSet] using VertexSeq.edgeSet_loopErase_subset w.val
 
 /-- Working characterisation of `IsVertexSeqIn` for a `Walk`: `w` is in `G`
 iff its starting vertex belongs to `V(G)` and every edge it traverses
 belongs to `E(G)`. -/
 lemma isVertexSeqIn_iff (G : SimpleGraph α) (w : Walk α) :
-    IsVertexSeqIn G w.seq ↔ w.head ∈ V(G) ∧ w.edgeSet ⊆ E(G) := by
+    IsVertexSeqIn G w.val ↔ w.head ∈ V(G) ∧ w.edgeSet ⊆ E(G) := by
   grind [VertexSeq.isVertexSeqIn_iff]
 
 /-- If `w` is a sequence in `G` and there is an edge `s(u, w.head) ∈ E(G)`,
@@ -199,7 +199,7 @@ lemma isVertexSeqIn_reverse (G : SimpleGraph α) (w : VertexSeq α)
 lemma isVertexSeqIn_and_isWalk_reverse (G : SimpleGraph α) (w : VertexSeq α)
     (hw : IsVertexSeqIn G w ∧ IsWalk w) :
     IsVertexSeqIn G w.reverse ∧ IsWalk w.reverse :=
-  ⟨isVertexSeqIn_reverse G w hw.1, isWalk_reverse_of w hw.2⟩
+  ⟨isVertexSeqIn_reverse G w hw.1, (isWalk_reverse_iff w).mpr hw.2⟩
 
 /-- Dropping the last vertex of a sequence preserves the "in `G`" property. -/
 @[grind →]
@@ -242,9 +242,7 @@ lemma isVertexSeqIn_takeUntil (G : SimpleGraph α)
       · have hv_eq : v = x := by
           have hmem : v ∈ (w0.cons x).toList := h
           simp [VertexSeq.toList] at hmem
-          rcases hmem with rfl | hmem
-          · rfl
-          · exact (h2 hmem).elim
+          tauto
         subst hv_eq
         change IsVertexSeqIn G ((w0.cons v).takeUntil v h)
         rw [show (w0.cons v).takeUntil v h = w0.cons v by
@@ -297,32 +295,32 @@ lemma isVertexSeqIn_append (G : SimpleGraph α)
 in `G`. -/
 lemma isVertexSeqIn_walkAppend (G : SimpleGraph α)
     (w1 w2 : Walk α)
-    (h1 : IsVertexSeqIn G w1.seq) (h2 : IsVertexSeqIn G w2.seq)
+    (h1 : IsVertexSeqIn G w1.val) (h2 : IsVertexSeqIn G w2.val)
     (h : w1.tail = w2.head) :
-    IsVertexSeqIn G (Walk.append w1 w2 h).seq := by
+    IsVertexSeqIn G (Walk.append w1 w2 h).val := by
   unfold Walk.append
   by_cases hlen : w1.length = 0
   · simp only [hlen, dite_true]; exact h2
   · simp only [hlen, dite_false]
-    refine isVertexSeqIn_append G w1.seq.dropTail w2.seq
-      (isVertexSeqIn_dropTail G w1.seq h1) h2 ?_
-    obtain ⟨w0, u, hwseq⟩ : ∃ (w0 : VertexSeq α) (u : α), w1.seq = w0.cons u := by
-      match hseq : w1.seq with
+    refine isVertexSeqIn_append G w1.val.dropTail w2.val
+      (isVertexSeqIn_dropTail G w1.val h1) h2 ?_
+    obtain ⟨w0, u, hwseq⟩ : ∃ (w0 : VertexSeq α) (u : α), w1.val = w0.cons u := by
+      match hseq : w1.val with
       | .singleton v =>
           exfalso
           apply hlen
-          change w1.seq.length = 0
+          change w1.val.length = 0
           rw [hseq]; rfl
       | .cons w0 u => exact ⟨w0, u, rfl⟩
     have hh1 : IsVertexSeqIn G (w0.cons u) := hwseq ▸ h1
     have hedg' : s(w0.tail, u) ∈ E(G) := by
       cases hh1 with
       | cons _ _ _ he => exact he
-    have hdrop_tail : w1.seq.dropTail.tail = w0.tail := by rw [hwseq]; rfl
-    have hhead_eq : w2.seq.head = u := by
+    have hdrop_tail : w1.val.dropTail.tail = w0.tail := by rw [hwseq]; rfl
+    have hhead_eq : w2.val.head = u := by
       change w2.head = u
       rw [← h]
-      change w1.seq.tail = u
+      change w1.val.tail = u
       rw [hwseq]; rfl
     rw [hdrop_tail, hhead_eq]
     exact hedg'
@@ -330,8 +328,8 @@ lemma isVertexSeqIn_walkAppend (G : SimpleGraph α)
 /-- Loop-erasing a walk preserves the "in `G`" property: every walk in `G`
 yields a path in `G` between the same endpoints. -/
 lemma isVertexSeqIn_toPath (G : SimpleGraph α) (w : Walk α)
-    (hw : IsVertexSeqIn G w.seq) :
-    IsVertexSeqIn G w.toPath.seq := by
+    (hw : IsVertexSeqIn G w.val) :
+    IsVertexSeqIn G w.toPath.val.val := by
   rw [VertexSeq.isVertexSeqIn_iff] at hw
   rw [VertexSeq.isVertexSeqIn_iff]
   refine ⟨?_, ?_⟩

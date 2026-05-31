@@ -140,19 +140,19 @@ open VertexSeq
 
 /-- The set of directed edges traversed by the walk `w`, defined to be
 the dir-edge set of its underlying vertex sequence. -/
-abbrev dirEdgeSet (w : Walk α) : Set (α × α) := w.seq.dirEdgeSet
+abbrev dirEdgeSet (w : Walk α) : Set (α × α) := w.val.dirEdgeSet
 
 /-- Loop-erasing a walk only drops directed edges: the dir-edge set of
 `w.toPath` is contained in the dir-edge set of `w`. -/
 lemma dirEdgeSet_toPath_subset (w : Walk α) :
-    w.toPath.dirEdgeSet ⊆ w.dirEdgeSet := by
-  simpa [dirEdgeSet] using VertexSeq.dirEdgeSet_loopErase_subset w.seq
+    w.toPath.val.dirEdgeSet ⊆ w.dirEdgeSet := by
+  simpa [dirEdgeSet] using VertexSeq.dirEdgeSet_loopErase_subset w.val
 
 /-- Working characterisation of `IsVertexSeqInDi` for a `Walk`: `w` is in
 `G` iff its starting vertex belongs to `V(G)` and every directed edge it
 traverses belongs to `E(G)`. -/
 lemma isVertexSeqInDi_iff (G : SimpleDiGraph α) (w : Walk α) :
-    IsVertexSeqInDi G w.seq ↔ w.head ∈ V(G) ∧ w.dirEdgeSet ⊆ E(G) := by
+    IsVertexSeqInDi G w.val ↔ w.head ∈ V(G) ∧ w.dirEdgeSet ⊆ E(G) := by
   grind [VertexSeq.isVertexSeqInDi_iff]
 
 /-- If `w` is a sequence in `G` and there is a directed edge
@@ -220,9 +220,7 @@ lemma isVertexSeqInDi_takeUntil (G : SimpleDiGraph α)
       · have hv_eq : v = x := by
           have hmem : v ∈ (w0.cons x).toList := h
           simp [VertexSeq.toList] at hmem
-          rcases hmem with rfl | hmem
-          · rfl
-          · exact (h2 hmem).elim
+          tauto
         subst hv_eq
         change IsVertexSeqInDi G ((w0.cons v).takeUntil v h)
         rw [show (w0.cons v).takeUntil v h = w0.cons v by
@@ -275,32 +273,32 @@ lemma isVertexSeqInDi_append (G : SimpleDiGraph α)
 walk in `G`. -/
 lemma isVertexSeqInDi_walkAppend (G : SimpleDiGraph α)
     (w1 w2 : Walk α)
-    (h1 : IsVertexSeqInDi G w1.seq) (h2 : IsVertexSeqInDi G w2.seq)
+    (h1 : IsVertexSeqInDi G w1.val) (h2 : IsVertexSeqInDi G w2.val)
     (h : w1.tail = w2.head) :
-    IsVertexSeqInDi G (Walk.append w1 w2 h).seq := by
+    IsVertexSeqInDi G (Walk.append w1 w2 h).val := by
   unfold Walk.append
   by_cases hlen : w1.length = 0
   · simp only [hlen, dite_true]; exact h2
   · simp only [hlen, dite_false]
-    refine isVertexSeqInDi_append G w1.seq.dropTail w2.seq
-      (isVertexSeqInDi_dropTail G w1.seq h1) h2 ?_
-    obtain ⟨w0, u, hwseq⟩ : ∃ (w0 : VertexSeq α) (u : α), w1.seq = w0.cons u := by
-      match hseq : w1.seq with
+    refine isVertexSeqInDi_append G w1.val.dropTail w2.val
+      (isVertexSeqInDi_dropTail G w1.val h1) h2 ?_
+    obtain ⟨w0, u, hwseq⟩ : ∃ (w0 : VertexSeq α) (u : α), w1.val = w0.cons u := by
+      match hseq : w1.val with
       | .singleton v =>
           exfalso
           apply hlen
-          change w1.seq.length = 0
+          change w1.val.length = 0
           rw [hseq]; rfl
       | .cons w0 u => exact ⟨w0, u, rfl⟩
     have hh1 : IsVertexSeqInDi G (w0.cons u) := hwseq ▸ h1
     have hedg' : (w0.tail, u) ∈ E(G) := by
       cases hh1 with
       | cons _ _ _ he => exact he
-    have hdrop_tail : w1.seq.dropTail.tail = w0.tail := by rw [hwseq]; rfl
-    have hhead_eq : w2.seq.head = u := by
+    have hdrop_tail : w1.val.dropTail.tail = w0.tail := by rw [hwseq]; rfl
+    have hhead_eq : w2.val.head = u := by
       change w2.head = u
       rw [← h]
-      change w1.seq.tail = u
+      change w1.val.tail = u
       rw [hwseq]; rfl
     rw [hdrop_tail, hhead_eq]
     exact hedg'
@@ -308,8 +306,8 @@ lemma isVertexSeqInDi_walkAppend (G : SimpleDiGraph α)
 /-- Loop-erasing a walk preserves the "in `G`" property: every walk in
 `G` yields a path in `G` between the same endpoints. -/
 lemma isVertexSeqInDi_toPath (G : SimpleDiGraph α) (w : Walk α)
-    (hw : IsVertexSeqInDi G w.seq) :
-    IsVertexSeqInDi G w.toPath.seq := by
+    (hw : IsVertexSeqInDi G w.val) :
+    IsVertexSeqInDi G w.toPath.val.val := by
   rw [VertexSeq.isVertexSeqInDi_iff] at hw
   rw [VertexSeq.isVertexSeqInDi_iff]
   refine ⟨?_, ?_⟩

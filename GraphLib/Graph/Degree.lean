@@ -95,11 +95,11 @@ def SimpleGraph.incidenceSet (G : SimpleGraph α) (v : α) : Set (Sym2 α) :=
   {e ∈ G.edgeSet | v ∈ e}
 
 /-- The set of directed edges of `G` with source `v`. -/
-def DiGraph.outIncidenceSet (G : DiGraph α β) (v : α) : Set (DiEdge α β) :=
+def DiGraph.outIncidenceSet (G : DiGraph α β) (v : α) : Set (Arc α β) :=
   {e ∈ G.edgeSet | e.endpoints.1 = v}
 
 /-- The set of directed edges of `G` with target `v`. -/
-def DiGraph.inIncidenceSet (G : DiGraph α β) (v : α) : Set (DiEdge α β) :=
+def DiGraph.inIncidenceSet (G : DiGraph α β) (v : α) : Set (Arc α β) :=
   {e ∈ G.edgeSet | e.endpoints.2 = v}
 
 /-- The set of directed edges of `G` with source `v`. -/
@@ -143,7 +143,7 @@ end Degrees
 
 /-- The maximum degree `Δ(G)` of the multigraph `G`, valued in `ℕ∞`. For
 the empty graph this is `0`. -/
-def Graph.finMaxDegree (G : Graph α β) [Finite G.vertexSet] : ℕ :=
+noncomputable def Graph.finMaxDegree (G : Graph α β) [Finite G.vertexSet] : ℕ∞ :=
   ⨆ v ∈ V(G), (G.degree v : ℕ∞)
 
 /-- The minimum degree `δ(G)` of the multigraph `G`, valued in `ℕ∞`. For

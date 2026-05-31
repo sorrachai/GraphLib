@@ -24,11 +24,11 @@ their textbook counterparts.
 ## Main definitions
 
 * `Edge α β`: an undirected edge with a label of type `β` and endpoints as a `Sym2 α`.
-* `DiEdge α β`: a directed edge with a label of type `β` and endpoints as `α × α`.
+* `Arc α β`: a directed edge with a label of type `β` and endpoints as `α × α`.
 * `Graph α β`: a general graph whose edges are `Edge α β` values. Parallel edges and
   loops are permitted.
 * `SimpleGraph α`: a simple graph with edges as `Sym2 α`, no loops.
-* `DiGraph α β`: a directed graph whose edges are `DiEdge α β` values. Parallel edges
+* `DiGraph α β`: a directed graph whose edges are `Arc α β` values. Parallel edges
   and loops are permitted.
 * `SimpleDiGraph α`: a simple directed graph with edges as `α × α`, no loops.
 
@@ -59,15 +59,15 @@ variable {α β : Type*}
 /-- An undirected edge with a label of type `β` and an unordered pair of endpoints. -/
 structure Edge (α β : Type*) where
   /-- The edge label, used to distinguish parallel edges. -/
-  edgeLabel : β
+  endpointsLabel : β
   /-- The unordered pair of endpoints. -/
   endpoints : Sym2 α
 deriving DecidableEq
 
 /-- A directed edge with a label of type `β` and an ordered pair of endpoints. -/
-structure DiEdge (α β : Type*) where
+structure Arc (α β : Type*) where
   /-- The edge label, used to distinguish parallel edges. -/
-  edgeLabel : β
+  endpointsLabel : β
   /-- The ordered pair `(source, target)` of endpoints. -/
   endpoints : α × α
 deriving DecidableEq
@@ -75,7 +75,6 @@ deriving DecidableEq
 /-- A general graph on vertex type `α` with edge labels in `β`. Each edge bundles a label
 and an unordered pair of endpoints. Parallel edges and loops are permitted, and both the
 vertex and edge sets may be infinite. -/
-@[grind]
 structure Graph (α β : Type*) where
   /-- The set of vertices. -/
   vertexSet : Set α
@@ -99,17 +98,15 @@ structure SimpleGraph (α : Type*) where
 /-- A directed graph on vertex type `α` with edge labels in `β`. Each edge bundles a label
 and an ordered pair of endpoints. Parallel edges and loops are permitted, and both the
 vertex and edge sets may be infinite. -/
-@[grind]
 structure DiGraph (α β : Type*) where
   /-- The set of vertices. -/
   vertexSet : Set α
   /-- The set of edges. -/
-  edgeSet : Set (DiEdge α β)
+  edgeSet : Set (Arc α β)
   /-- Both endpoints of every edge are vertices. Prefer `DiGraph.incidence`. -/
   incidence' : ∀ e ∈ edgeSet, e.endpoints.1 ∈ vertexSet ∧ e.endpoints.2 ∈ vertexSet
 
 /-- A simple directed graph on `α` with edges as ordered pairs of distinct vertices. -/
-@[grind]
 structure SimpleDiGraph (α : Type*) where
   /-- The set of vertices. -/
   vertexSet : Set α
@@ -122,7 +119,6 @@ structure SimpleDiGraph (α : Type*) where
 
 /-- Forget the looplessness axiom of a `SimpleGraph`, viewing it as a `Graph` whose edges
 are `Edge α (Sym2 α)` with the pair as both label and endpoints. -/
-@[grind →]
 def SimpleGraph.toGraph (G : SimpleGraph α) : Graph α (Sym2 α) where
   vertexSet := G.vertexSet
   edgeSet := (fun e => ⟨e, e⟩) '' G.edgeSet
@@ -131,8 +127,7 @@ def SimpleGraph.toGraph (G : SimpleGraph α) : Graph α (Sym2 α) where
     exact G.incidence' e he v hv
 
 /-- Forget the looplessness axiom of a `SimpleDiGraph`, viewing it as a `DiGraph` whose
-edges are `DiEdge α (α × α)` with the pair as both label and endpoints. -/
-@[grind →]
+edges are `Arc α (α × α)` with the pair as both label and endpoints. -/
 def SimpleDiGraph.toDiGraph (G : SimpleDiGraph α) : DiGraph α (α × α) where
   vertexSet := G.vertexSet
   edgeSet := (fun e => ⟨e, e⟩) '' G.edgeSet
@@ -143,14 +138,6 @@ def SimpleDiGraph.toDiGraph (G : SimpleDiGraph α) : DiGraph α (α × α) where
 instance : Coe (SimpleGraph α) (Graph α (Sym2 α)) := ⟨SimpleGraph.toGraph⟩
 
 instance : Coe (SimpleDiGraph α) (DiGraph α (α × α)) := ⟨SimpleDiGraph.toDiGraph⟩
-
-class GraphLike (G α : Type*) where
-  /-- The vertex set of the graph. -/
-  vertexSet : G → Set α
-  /-- The edge set of the graph. -/
-  edgeSet : G → Set (Sym2 α)
-
-class DiGraphLike (G : Type*) (Type* α)
 
 /-- Typeclass for graph-like structures that have a vertex set. -/
 class HasVertexSet (G : Type*) (V : outParam Type*) where
@@ -181,7 +168,7 @@ class HasEdgeSet (G : Type*) (E : outParam Type*) where
   ⟨SimpleGraph.edgeSet⟩
 
 @[simp] instance {α β : Type*} : HasEdgeSet (DiGraph α β) (Set (α × α)) :=
-  ⟨fun G => DiEdge.endpoints '' G.edgeSet⟩
+  ⟨fun G => Arc.endpoints '' G.edgeSet⟩
 
 @[simp] instance {α : Type*} : HasEdgeSet (SimpleDiGraph α) (Set (α × α)) :=
   ⟨SimpleDiGraph.edgeSet⟩
