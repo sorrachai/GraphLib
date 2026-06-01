@@ -28,21 +28,18 @@ lemma isWalkIn_first_edge {V : Type*}
   induction hw with
   | singleton v hv => exact absurd hlen (by grind [VertexSeq.length])
   | cons w' u' hw_inner hedg ih =>
-      by_cases h' : w'.length = 0
-      · -- w' is a singleton: w'.head = w'.tail, direct edge (w.head, u')
-        have heq : w'.head = w'.tail := Walk.head_eq_tail_of_length_zero w' h'
-        exact ⟨u',
-          by simp [Walk.support, Walk.append_single, VertexSeq.toList],
-          (G.loopless _ (heq ▸ hedg)).symm,
-          heq ▸ hedg⟩
-      · -- w'.length > 0: IH gives first edge of w', lift membership to w
-        -- ih : w'.length > 0 → ∃ a₁ ∈ w'.support, a₁ ≠ w'.head ∧ (w'.head, a₁) ∈ G.edgeSet
-        obtain ⟨a₁, ha₁_supp, ha₁_neq, ha₁_edge⟩ := ih (Nat.pos_of_ne_zero h')
-        exact ⟨a₁,
-          by simp only [support, append_single, VertexSeq.toList, List.mem_cons];
-              exact Or.inr ha₁_supp,
-          ha₁_neq,
-          ha₁_edge⟩
+    by_cases h' : w'.length = 0
+    · -- w' is a singleton: w'.head = w'.tail, direct edge (w.head, u')
+      have heq : w'.head = w'.tail := Walk.head_eq_tail_of_length_zero w' h'
+      exact ⟨u',
+        by simp [Walk.support, Walk.append_single, VertexSeq.toList],
+        (G.loopless _ (heq ▸ hedg)).symm, heq ▸ hedg⟩
+    · -- w'.length > 0: IH gives first edge of w', lift membership to w
+      -- ih : w'.length > 0 → ∃ a₁ ∈ w'.support, a₁ ≠ w'.head ∧ (w'.head, a₁) ∈ G.edgeSet
+      obtain ⟨a₁, ha₁_supp, ha₁_neq, ha₁_edge⟩ := ih (Nat.pos_of_ne_zero h')
+      exact ⟨a₁,
+        by simp only [support, append_single, VertexSeq.toList, List.mem_cons];
+            exact Or.inr ha₁_supp, ha₁_neq, ha₁_edge⟩
 
 end Walk
 
@@ -56,48 +53,53 @@ variable {α : Type*} [DecidableEq α]
     has no duplicate vertices — List.Nodup. -/
 def IsPathIn (G : SimpleDiGraph α) (w : Walk α) : Prop := IsWalkIn G w ∧ w.IsPath
 
+omit [DecidableEq α] in
+/-- A prefix walk `w'` is a path-in-G whenever the extended walk `w'.append_single u'` is a
+    path-in-G and `w'` is independently known to be a walk-in-G. -/
+private lemma isPathIn_of_append_single_left {G : SimpleDiGraph α} {w' : Walk α} {u' : α}
+    {h : u' ≠ w'.tail}
+    (hwalk : IsWalkIn G w') (hpath : IsPathIn G (w'.append_single u' h)) :
+    IsPathIn G w' :=
+  ⟨hwalk, by
+    have := hpath.2
+    simp only [Walk.IsPath, Walk.support, Walk.append_single,
+               VertexSeq.toList, List.nodup_cons] at this
+    exact this.2⟩
+
 /-- If w is a simple path (no repeated vertices) in G, and u is any vertex on that path,
     then the portion of the path from u onward is also a simple path in G. -/
 lemma IsPathIn.suffix (G : SimpleDiGraph α) (w : Walk α) (u : α)
     (hu : u ∈ w.support) (hw : IsPathIn G w) :
     IsPathIn G ⟨w.seq.dropUntil u hu, dropUntil_iswalk w.seq u hu w.valid⟩ := by
   constructor
-  · -- IsWalkIn: edges of suffix are edges of w; prove by induction on IsWalkIn w
-    induction hw.1 generalizing u with   -- hw.1 : IsWalkIn G w
+  · -- Part 1: IsWalkIn G (suffix).
+    -- Strategy: induction on the structure of `hw.1 : IsWalkIn G w`.
+    -- `u` is generalised so the IH applies at any vertex, not just the outermost one.
+    induction hw.1 generalizing u with
     | singleton v hv =>
-      simp only [Walk.support, VertexSeq.toList, List.mem_singleton] at hu
-      subst hu
-      simp only [VertexSeq.dropUntil]
-      exact Walk.IsWalkIn.singleton u hv
+      -- w is a singleton {v}; its only vertex is v, so u = v and dropUntil returns {v} unchanged.
+      -- `grind` derives u = v from hu, unfolds dropUntil, and closes with IsWalkIn.singleton.
+      grind [Walk.support, VertexSeq.toList, VertexSeq.dropUntil, Walk.IsWalkIn.singleton]
     | cons w' u' hw' hedg ih =>
+      -- w = w'.append_single u', so u lies either in w' or is u' itself.
       simp only [Walk.append_single, Walk.support, VertexSeq.toList, List.mem_cons] at hu
       by_cases hu' : u ∈ w'.seq.toList
-      · -- suffix starts inside w': dropUntil goes deeper, then re-attaches u'
+      · -- u is strictly inside w': dropUntil recurses into w' and then re-attaches u'.
+        -- After simplification the goal is IsWalkIn G ((dropUntil w' u).append_single u').
         simp only [Walk.append_single, VertexSeq.dropUntil, dif_pos hu']
-        expose_names; simp_all
-        -- Prove the IsWalkIn for the suffix:
-        -- the new walk is w'.seq.dropUntil u hu' with u' appended;
-        -- the new walk is a walk in G because w' is a walk in G
-        -- and the edge from w'.tail to u' is in G.
-        -- #TODO: the current proof reads obsecure;
-        --        can we clean it up to a few more readable lemmas?
+        expose_names; simp_all only [support, or_true]
+        -- Apply IsWalkIn.cons: the suffix of w' is a walk-in-G (by IH, using the fact that w'
+        -- is itself a path since w was a path), and the edge (suffix.tail, u') exists because
+        -- tail_dropUntil shows the suffix tail equals w'.tail where hedg already gives the edge.
         exact IsWalkIn.cons ⟨w'.seq.dropUntil u hu', dropUntil_iswalk w'.seq u hu' w'.valid⟩ u'
-          (ih u hu' ⟨hw', by
-            have hpath := hw.2
-            simp only [Walk.IsPath, Walk.support,
-              Walk.append_single, VertexSeq.toList, List.nodup_cons] at hpath
-            exact hpath.2⟩)
-          (by
-            have htail :
-              (
-                ⟨w'.seq.dropUntil u hu', dropUntil_iswalk w'.seq u hu' w'.valid⟩ : Walk α
-              ).tail = w'.tail :=
-              VertexSeq.tail_dropUntil w'.seq u hu'
-            exact htail ▸ hedg)
-      · -- suffix starts at u': dropUntil stops immediately
+          (ih u hu' (isPathIn_of_append_single_left hw' hw))
+          (walk_tail_dropUntil w' u hu' ▸ hedg)
+      · -- u = u' (the appended vertex): dropUntil stops immediately, yielding the singleton {u'}.
+        -- u' is in G.vertexSet because hedg witnesses an outgoing edge from w'.tail to u'.
         simp only [Walk.append_single, VertexSeq.dropUntil, dif_neg hu']
         exact IsWalkIn.singleton u' (G.incidence _ hedg).2
-  · -- IsPath: suffix support is duplicate-free (dropUntil preserves Nodup)
+  · -- Part 2: IsPath (suffix), i.e. no repeated vertices.
+    -- dropUntil preserves List.Nodup, so the suffix support is still duplicate-free.
     unfold Walk.IsPath Walk.support
     exact VertexSeq.dropUntil_toList_nodup hu hw.2
 

@@ -383,6 +383,13 @@ lemma head_eq_tail_of_length_zero (w : Walk α) (h : w.length = 0)
   : w.head = w.tail := by
   cases w; induction valid <;> grind
 
+/-- The tail of a `dropUntil` suffix walk equals the tail of the original walk.
+    Lifts `VertexSeq.tail_dropUntil` to the `Walk` level so that `▸` can match
+    goals of the form `(⟨w.seq.dropUntil v hv, ...⟩ : Walk α).tail`. -/
+@[simp, grind =]
+lemma walk_tail_dropUntil [DecidableEq α] (w : Walk α) (v : α) (hv : v ∈ w.seq.toList) :
+    (⟨w.seq.dropUntil v hv, dropUntil_iswalk w.seq v hv w.valid⟩ : Walk α).tail = w.tail :=
+  VertexSeq.tail_dropUntil w.seq v hv
 
 /-! ## Walk append, reverse and related lemmas -/
 
