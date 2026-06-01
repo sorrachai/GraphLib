@@ -18,6 +18,18 @@ open Finset
 
 namespace bfsAlgorithm_Tests
 
+/-- The next BFS frontier — out-neighbours of the current frontier minus already-visited
+    vertices — lies entirely within the unvisited part of V(G).
+    This relies on the graph-theoretic fact that N⁺(G, v) ⊆ V(G) for every vertex v. -/
+lemma bfs_next_subset_unvisited (G : SimpleDiGraph α) (frontier visited : Finset α) :
+    (frontier.biUnion (fun v ↦ N⁺(G, v))) \ visited ⊆ V(G) \ visited :=
+  Finset.subset_sdiff.mpr ⟨
+    fun x hx => by
+      obtain ⟨a, -, ha⟩ := Finset.mem_biUnion.mp (Finset.mem_sdiff.mp hx).1
+      exact (Finset.mem_filter.mp ha).1,
+    Finset.disjoint_left.mpr fun x hxn hxvis =>
+      (Finset.mem_sdiff.mp hxn).2 hxvis⟩
+
 /-- Core BFS traversal that computes distances from a fixed root to all vertices.
     Processes one frontier level per recursive call, accumulating distances in `dist`.
     Termination is established via the measure `|V(G) \ visited|`, which decreases
@@ -47,40 +59,30 @@ def bfs (G : SimpleDiGraph α) (visited frontier : Finset α)
       /- *Recurse*: advance one level — `visited` absorbs `next`,
          `frontier` becomes `next`, `d` increments by 1. -/
       bfs G (visited ∪ next) next (d + 1) dist'
--- Termination measure: `|V(G) \ visited|`, the number of graph vertices not yet visited.
--- Every recursive call adds the non-empty set `next` (whose members all lie in V(G) \ visited
--- because out-neighbours are graph vertices and next excludes visited by construction)
--- to `visited`, so this measure strictly decreases, guaranteeing termination.
+-- **Termination argument** — measure `|V(G) \ visited|` (unvisited vertex count).
+-- Goal: show `|V(G) \ (visited ∪ next)| < |V(G) \ visited|`, i.e. the next call's
+-- measure is strictly smaller.
 termination_by (V(G) \ visited).card
 decreasing_by
   rename_i h_next_ne
-  -- Out-neighbours lie in V(G); next also excludes visited, so next ⊆ V(G) \ visited.
-  have hnext_sub : next ⊆ V(G) \ visited :=
-    Finset.subset_sdiff.mpr ⟨
-      fun x hx => by
-        obtain ⟨a, -, ha⟩ := Finset.mem_biUnion.mp (Finset.mem_sdiff.mp hx).1
-        exact (Finset.mem_filter.mp ha).1,
-      Finset.disjoint_left.mpr fun x hxn hxvis =>
-        (Finset.mem_sdiff.mp hxn).2 hxvis⟩
-  -- V(G) \ (visited ∪ next) = (V(G) \ visited) \ next  (standard set identity)
-  have hkey : V(G) \ (visited ∪ next) = (V(G) \ visited) \ next := by
-    ext x; simp only [Finset.mem_sdiff, Finset.mem_union]; tauto
-  -- |(V(G) \ visited) \ next| + |next| = |V(G) \ visited|  (next ⊆ V(G) \ visited,
-  -- disjoint from its sdiff)
-  have hcard : ((V(G) \ visited) \ next).card + next.card = (V(G) \ visited).card := by
-    have hdisj : Disjoint ((V(G) \ visited) \ next) next := disjoint_sdiff_self_left
-    have hunion : (V(G) \ visited) \ next ∪ next = V(G) \ visited := by
-      ext x; simp only [Finset.mem_union, Finset.mem_sdiff]
-      constructor
-      · rintro (⟨h, -⟩ | h)
-        · exact h
-        · exact Finset.mem_sdiff.mp (hnext_sub h)
-      · intro h
-        by_cases hx : x ∈ next
-        · exact Or.inr hx
-        · exact Or.inl ⟨h, hx⟩
-    rw [← Finset.card_union_of_disjoint hdisj, hunion]
-  have hpos : 0 < next.card := (Finset.nonempty_of_ne_empty h_next_ne).card_pos
+  -- *Containment* (`hnext_sub`): `next ⊆ V(G) \ visited`.
+  -- Because every element of `next` is an out-neighbour of some frontier vertex —
+  -- hence in V(G) — and was excluded from `visited` by construction
+  -- (`bfs_next_subset_unvisited`).
+  have hnext_sub : next ⊆ V(G) \ visited := bfs_next_subset_unvisited G frontier visited
+  -- *Set identity* (`hkey`): `V(G) \ (visited ∪ next) = (V(G) \ visited) \ next`.
+  -- Standard lattice law `(a \ b) \ c = a \ (b ⊔ c)` (`sdiff_sdiff_left`), with
+  -- `∪ = ⊔` for `Finset`.
+  have hkey  : V(G) \ (visited ∪ next) = (V(G) \ visited) \ next := by
+    simp only [← Finset.sup_eq_union, ← sdiff_sdiff_left]   -- lattice law + ∪ = ⊔
+  -- *Partition* (`hcard`): because `next ⊆ V(G) \ visited` (step 1),
+  -- the unvisited vertices split as a disjoint union:
+  --   `|(V(G) \ visited) \ next| + |next| = |V(G) \ visited|`
+  -- (`Finset.card_sdiff_add_card_eq_card`).
+  have hcard := Finset.card_sdiff_add_card_eq_card hnext_sub
+  -- *Non-emptiness* (`hpos`): `next ≠ ∅` (the guard that enabled this branch), so `0 < |next|`.
+  have hpos  := (Finset.nonempty_of_ne_empty h_next_ne).card_pos
+  -- The above together give `|V(G) \ (visited ∪ next)| < |V(G) \ visited|` by `omega`.
   rw [hkey]; omega
 
 /-- BFS distance map from `v` to all vertices of `G`.
