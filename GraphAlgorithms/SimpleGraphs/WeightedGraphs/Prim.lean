@@ -61,11 +61,6 @@ noncomputable def disjointEdges'
     rw [h1]
     omega
 
-lemma IsDisjointEdgeSet.nonempty {A : Finset (Edge α)} (h : IsDisjointEdgeSet A) (hne : A ≠ ∅) : A.Nonempty := by
-  cases h with
-  | empty => contradiction
-  | cons A e hw hedg => exact ⟨e, Finset.mem_union_left _ (Finset.mem_singleton_self e)⟩
-
 inductive IsDisjointEdgeSet : Finset (Edge α) → Prop
   | empty
     : IsDisjointEdgeSet ∅
@@ -74,6 +69,11 @@ inductive IsDisjointEdgeSet : Finset (Edge α) → Prop
       (hedg : ∀ y ∈ A, e.toFinset ∩ y.toFinset = ∅)
     : IsDisjointEdgeSet ({e} ∪ A)
 
+lemma IsDisjointEdgeSet.nonempty {A : Finset (Edge α)} (h : IsDisjointEdgeSet A)
+  (hne : A ≠ ∅) : A.Nonempty := by
+  cases h with
+  | empty => contradiction
+  | cons A e hw hedg => exact ⟨e, Finset.mem_union_left _ (Finset.mem_singleton_self e)⟩
 
 @[simp] noncomputable def disjointEdges
     (edges : Finset (Edge α)) :
@@ -190,7 +190,7 @@ lemma disjoint'_sub (A : Finset (Edge α)) (acc : Finset (Edge α))
 
 noncomputable def prim
     (G : WeightedSimpleGraph α)
-    (edgeSet: Finset (Edge α))
+    (edgeSet : Finset (Edge α))
     (frontier visited : Finset α)
     (hfront_sub : frontier ⊆  V(G))
     (hvisited_sub : visited ⊆  V(G))
@@ -222,14 +222,14 @@ noncomputable def prim
         have hchosen_sub_min: chosen ⊆ min_edges := by
           simp only [disjointEdges, chosen]
           have h := disjoint'_sub min_edges ∅
-          simp at h
+          simp only [union_empty] at h
           exact h
         have htrans := hchosen_sub_min.trans hmin_sub_crossing
         have hnew_nodes : newNodes ⊆ V(G) := by 
-              simp [newNodes]
+              simp only [biUnion_subset_iff_forall_subset, newNodes]
               intro e hedge
               have hvv := htrans hedge
-              simp [crossing] at hvv
+              simp only [crossingEdges, mem_biUnion, mem_filter, crossing] at hvv
               obtain ⟨u, hx⟩ := hvv
               intro m hm
               simp at hm
@@ -240,8 +240,7 @@ noncomputable def prim
       edgeSet
 termination_by (V(G) \ visited).card
 decreasing_by
-  rename_i hn
-  set min_edges := minimumWeightEdges G crossing h with hmin
+  set min_edges := minimumWeightEdges G crossing h
   have hmin_edge_ne: min_edges.Nonempty := crossing_to_min_weight_edges G crossing h
   have hchosen_ne: chosen.Nonempty := disjoint_nonempty_imp_nonempty min_edges ∅ hmin_edge_ne
   have hmin_sub_crossing: min_edges ⊆ crossing := by
@@ -249,14 +248,14 @@ decreasing_by
   have hchosen_sub_min: chosen ⊆ min_edges := by
     simp only [disjointEdges, chosen]
     have h := disjoint'_sub min_edges ∅
-    simp at h
+    simp only [union_empty] at h
     exact h
   have htrans := hchosen_sub_min.trans hmin_sub_crossing
   have hnew_nodes : newNodes ⊆ V(G) := by 
-    simp [newNodes]
+    simp only [biUnion_subset_iff_forall_subset, newNodes]
     intro e hedge
     have hvv := htrans hedge
-    simp [crossing] at hvv
+    simp only [crossingEdges, mem_biUnion, mem_filter, crossing] at hvv
     obtain ⟨u, hx⟩ := hvv
     intro m hm
     simp at hm
@@ -265,23 +264,21 @@ decreasing_by
   have hnew_node: ¬ newNodes ⊆ visited  := by
     intro h_contra
     obtain ⟨e', he⟩ := hchosen_ne
-    simp [newNodes] at h_contra
+    simp only [biUnion_subset_iff_forall_subset, newNodes] at h_contra
     have h_crossing := htrans he
-    simp [crossing] at h_crossing
+    simp only [crossingEdges, mem_biUnion, mem_filter, crossing] at h_crossing
     obtain ⟨m, hm⟩ := h_crossing
     have h_contra' : ∀ u, u ∈ {x ∈ toFinset e' | x ∉ visited} → u ∈ visited := (h_contra e' he)
-    simp at h_contra'
+    simp only [mem_filter, mem_toFinset, and_imp, _root_.not_imp_self] at h_contra'
     have hsimp := h_contra' m hm.right.right.left
-    have hinter := Finset.mem_inter.mpr ⟨hm.left, hsimp⟩ 
+    have hinter := Finset.mem_inter.mpr ⟨hm.left, hsimp⟩
     grind
   apply Finset.card_lt_card
   constructor
-  . grind
-  . intro hv
+  ·  grind
+  · intro hv
     have htwo_u := Finset.union_subset hvisited_sub hnew_nodes
     have hs_hs := (sdiff_subset_sdiff_iff_subset hvisited_sub htwo_u).mp hv
     grind
-
-  
 
 
