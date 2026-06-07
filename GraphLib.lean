@@ -17,4 +17,4 @@ import GraphLib.Algorithms.MST.Basic
 import GraphLib.Algorithms.Flow.Basic
 import GraphLib.Algorithms.SCC.Basic
 
-import GraphLib.DataStructures.UnionFind.Basic
+import GraphLib.DataStructures.UnionFind.Blueprint
