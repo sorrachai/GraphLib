@@ -15,6 +15,7 @@ open Finset WeightedSimpleGraph Sym2
 def is_connected (G : WeightedSimpleGraph α) : Prop :=
   ∀ u v: α , u ≠ v →  ∃ p: Walk α, Path.IsPathIn G p
 
+
 @[simp, grind] def crossingEdges
     (G : WeightedSimpleGraph α)
     (frontier visited : Finset α) :

@@ -3,7 +3,8 @@ import GraphAlgorithms.SimpleGraphs.WeightedGraphs.Walk
 import Mathlib.Tactic
 import Mathlib.Order.WithBot
 import Mathlib.Data.Sym.Sym2
-import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Tree.Basic
+
 
 set_option tactic.hygienic false
 
