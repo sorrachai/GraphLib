@@ -76,7 +76,7 @@ def Direction.opposite : Direction -> Direction
   | .Decreasing => Direction.Increasing
   
 
-inductive IsMonotonePathInG (G : ParentTree α) (dir : Direction) : Walk α → Prop
+/-inductive IsMonotonePathInG (G : ParentTree α) (dir : Direction) : Walk α → Prop
   | singleton (v : α) (hv: v ∈ G.vertexSet)
     : IsMonotonePathInG G dir ⟨.singleton v, .singleton v⟩
   | cons (w : Walk α) (u : α) 
@@ -90,9 +90,22 @@ inductive IsMonotonePathInG (G : ParentTree α) (dir : Direction) : Walk α → 
     : IsMonotonePathInG G dir (w.append_single u (by 
       simp at hedg 
       exact hedg.right
-      ))
+      ))-/
 
-lemma cons_trail_inG (G : ParentTree α) (w w' : Walk α) (u : α) (hu : u ≠ w'.tail)
+@[grind, simp] def VertexSeq.IsMonotone (G : ParentTree α) (dir : Direction) : VertexSeq α → Prop
+      | .singleton  _ => True
+      | .cons w' u => 
+          let ord := match dir with
+            | Direction.Increasing =>  G.level w'.tail < G.level u
+            | Direction.Decreasing =>  G.level w'.tail > G.level u
+          ord ∧  VertexSeq.IsMonotone G dir w'
+
+@[grind, simp] def Walk.IsMonotone (w : Walk α) (G : ParentTree α) (dir : Direction) : Prop :=
+  VertexSeq.IsMonotone G dir w.seq
+
+
+
+/-lemma cons_trail_inG (G : ParentTree α) (w w' : Walk α) (u : α) (hu : u ≠ w'.tail)
   (hw : IsWalkIn G w) (hw_eq : w = w'.append_single u hu) : IsWalkIn G w' := by
     cases hw   with
       | singleton v hv =>
@@ -101,7 +114,7 @@ lemma cons_trail_inG (G : ParentTree α) (w w' : Walk α) (u : α) (hu : u ≠ w
         simp [Walk.append_single] at hw_eq
         have h1 := Walk.ext_iff.mpr hw_eq.left
         rw [h1] at hwalk
-        exact hwalk
+        exact hwalk-/
 
 lemma is_walk_in_tree_last (G : ParentTree α) (w : Walk α) (h : IsWalkIn G w) : 
        w.tail ∈ Vₚ(G) := by
@@ -158,27 +171,29 @@ lemma is_walk_in_tree_support (G : ParentTree α) (w : Walk α) (h : IsWalkIn G 
       grind
     · grind
 
-lemma increasing_monotone_path_tail_semilast (G : ParentTree α) (w : Walk α)
-  (hw : IsMonotonePathInG G (Direction.Increasing) w) (hlen : w.length > 0) :
+lemma increasing_monotone_path_tail_semilast (G : ParentTree α)
+  (w : Walk α) (hw : IsWalkIn G w) (hmono : Walk.IsMonotone w G (Direction.Increasing))
+  (hlen : w.length > 0) :
     G.level w.dropTail.tail < G.level w.tail := by
       induction hw with
         | singleton =>
           simp [Walk.tail, VertexSeq.dropTail] at hlen
         | cons =>
-          simp only at hdir
+          simp [Walk.append_single] at hmono
           simp only [Walk.tail, VertexSeq.dropTail, append_single, con_tail_eq]
-          exact hdir
+          grind
 
 
 
 lemma increasing_monotone_path_tail_semilast_parent (G : ParentTree α) (w : Walk α)
-  (hw : IsMonotonePathInG G (Direction.Increasing) w) (hlen : w.length > 0) :
+  (hw : IsWalkIn G w) (hmono : Walk.IsMonotone w G (Direction.Increasing))
+  (hlen : w.length > 0) :
      w.dropTail.tail = G.parent w.tail := by
       induction hw with
         | singleton =>
           simp [Walk.tail, VertexSeq.dropTail] at hlen
         | cons =>
-          simp only at hdir
+          simp [Walk.append_single] at hmono
           simp only [Walk.tail, VertexSeq.dropTail, append_single, con_tail_eq]
           have hin := is_walk_in_tree_last G w_1 hw_1
           have h_parent := edge_parent G u w_1.tail
@@ -212,109 +227,74 @@ lemma is_walk_in_tree_last_semilast (G : ParentTree α) (w : Walk α) (h : IsWal
 lemma IsMonotonePathInG.from_head_imp_increasing (G : ParentTree α) (w : Walk α)
   (hw : IsWalkIn G w) (hp : w.IsPath) (hlen : w.length ≥ 1)
   (h_head : G.parent (w.seq.dropHead.head) = w.seq.head) : 
-    IsMonotonePathInG G Direction.Increasing w
-    := by
+    Walk.IsMonotone w G Direction.Increasing := by
     induction hw with
-    | singleton v hv => 
-      exact IsMonotonePathInG.singleton v hv
+    | singleton v hv => grind
     | cons w' u hw hedge hind => 
-        by_cases hlen' : w'.length = 0
-        · -- Single elment is trivial case
-          have h_single : ∃ u, w'.seq = VertexSeq.singleton u := by
-            simp [Walk.length] at hlen'
-            have heq := VertexSeq.toList_length_eq w'.seq
-            simp [hlen'] at heq
-            apply List.length_eq_one_iff.mp at heq
-            obtain ⟨a, ha⟩ := heq
-            use a
-            cases hP: w'.seq with 
-              | singleton v => 
-                simp [hP] at ha
-                simp [VertexSeq.toList] at ha
-                simp [ha]
-              | cons v hv => 
-                grind
-          obtain ⟨s, hs⟩ := h_single
-          simp [Walk.append_single, hs, VertexSeq.dropHead] at h_head 
-          have hs_in : s ∈ Vₚ(G) := by
-              rcases hw
-              · simp at hs
-                grind
-              . simp [Walk.append_single] at hs
-          exact IsMonotonePathInG.cons  (G := G) (dir := Direction.Increasing) w' u
-            hw hedge  (by 
-            have heq : w' = ⟨.singleton s, .singleton s⟩  := by 
-              apply Walk.ext_iff.mpr
-              simp [hs]
-            simp
-            cases hw with
-              | singleton c => 
-                simp [Walk.tail, VertexSeq.tail] at * 
-                simp [Walk.tail] at hedge
-                rcases hedge with hl | hr
-                · have hlr : G.parent u = G.parent (G.parent c) := congrArg G.parent hl
-                  simp [h_head] at hlr
-                  by_cases hlvl : G.level c = 0
-                  · apply (G.root c hv).mp at hlvl
-                    grind
-                  · 
-                    simp [← hs] at h_head
-                    have hord_app := G.ordering c hv (by omega)
-                    have u_in:  u ∈ Vₚ(G):= (by 
-                      have := G.incidence c hv
-                      simp [hl]
-                      grind
-                      )
-                    have v_level := (Iff.not (G.root u u_in)).mpr (by grind)
-                    have hord_v_app := G.ordering u  u_in (by omega)
-                    grind
-                · -- righ branch
-                  have v_level := (Iff.not (G.root u hr.left)).mpr (by grind)
-                  have hord := G.ordering u hr.left (by omega)
-                  grind
-              | cons  => 
-                simp [Walk.append_single] at heq
-            ) (by 
-                have := IsMonotonePathInG.singleton (dir := Direction.Increasing) s hs_in
-                have heq : w' = ⟨.singleton s, .singleton s⟩  := by simp [Walk.ext_iff]; grind
-                rw [heq]
-                grind)
-        · -- Gt one
-          apply  Nat.ne_zero_iff_zero_lt.mp at hlen'
-          apply  Nat.lt_iff_add_one_le.mp at hlen'
-          simp at hlen'
-          simp [VertexSeq.con_head_eq, Walk.append_single] at h_head
-          have hseqhead : (w'.seq.cons u).dropHead.head = w'.seq.dropHead.head := by
-            have hb := dropHead.eq_3 w'.seq u (by grind)
-            grind
-          simp [hseqhead] at h_head
-          have hp' : w'.IsPath := by
-            simp [Walk.IsPath]
-            simp [Walk.append_single] at hp
-            grind
-          have happ := hind hp' hlen' h_head 
-          have hdir := increasing_monotone_path_tail_semilast G w' happ hlen'
-          have hin_semi := is_walk_in_tree_last_semilast G w' hw hlen' 
-          have hdir_parent := edge_parent G w'.tail w'.dropTail.tail hin_semi.right hdir
-          have hsemi_ne_next : w'.dropTail.tail ≠ u := by 
-            simp [Walk.append_single, Walk.IsPath, VertexSeq.toList] at hp
-            by_contra h_cc
-            have := VertexSeq.dropTail_tail_mem_toList w'.seq
-            grind
-
-          -- Increasing step
-          have hdir' : G.level w'.tail < G.level u := by 
+      simp [Walk.append_single]
+      by_cases hln : w'.length = 0
+      · --Eq 0
+        cases hw with
+          | singleton =>
+            simp at *
+            simp [Walk.append_single, VertexSeq.dropHead] at h_head
+            simp only [Walk.tail, VertexSeq.tail] at hedge
             simp at hedge
-            obtain ⟨ha, hb⟩ := hedge
-            rcases ha with hl | hr
-            · -- u parent tail (decreasing case)
+            obtain ⟨hor, hand⟩  := hedge
+            rcases hor with hl | hr
+            · -- Levels will not match
+              have v_level := (Iff.not (G.root v hv)).mpr (by grind)
+              have u_level := (Iff.not (G.root u (by grind))).mpr (by grind)
+              have hord_1 := G.ordering v hv (by grind) 
+              rw [← hl] at hord_1
+              have hord_2 := G.ordering u (by grind)  (by grind)
+              rw [← h_head] at hord_1
               grind
-            · --
-              have h := G.ordering u hr.left (by grind)
+            · -- Normal edge
+              have u_level := (Iff.not (G.root u (by grind))).mpr (by grind)
+              have hord_2 := G.ordering u (by grind)  (by grind)
               grind
-          exact IsMonotonePathInG.cons (dir := Direction.Increasing) w' u hw hedge 
-            (by grind) happ
+          | cons => 
+            simp [Walk.length, Walk.append_single] at hln
+            grind
 
+      · -- GT 0
+        have hparent : G.parent w'.seq.dropHead.head = w'.head := by
+          cases hw with 
+            | singleton p => 
+               grind
+            | cons w' => 
+              simp [Walk.append_single]
+              simp [Walk.append_single] at h_head
+              grind
+        have h_app := hind (by
+          simp [Walk.IsPath]; simp [Walk.append_single,Walk.IsPath] at hp; grind)
+          (by omega) hparent
+        rw [and_comm]
+        constructor
+        · exact h_app
+        · -- Prove that must be increasing using uniquenss
+          have h_semi := increasing_monotone_path_tail_semilast_parent G w' hw h_app (by omega)
+          have h_inc := increasing_monotone_path_tail_semilast G w' hw h_app (by omega)
+          simp at hedge
+          obtain ⟨hor, hand⟩ := hedge
+          rcases hor with hl | hr
+          · -- Should be monotonic
+            --have his_w_in : IsWalkIn G (w'.append_single u (by grind)) := sorry
+            --have h_inc_t := increasing_monotone_path_tail_semilast G 
+            --  (w'.append_single u (by grind)) his_w_in h_app (by omega)
+            have he : w'.dropTail.tail = u :=  by grind
+            simp [Walk.IsPath] at hp
+            have hsemi_ne_next : w'.dropTail.tail ≠ u := by 
+              simp [Walk.append_single, VertexSeq.toList] at hp
+              by_contra h_cc
+              have := VertexSeq.dropTail_tail_mem_toList w'.seq
+              grind
+            grind
+          · -- Is monotonic
+            have u_level := (Iff.not (G.root u (by grind))).mpr (by grind)
+            have hord := G.ordering u (by grind) (by grind)
+            grind
 
 
 lemma reverse_list_iff_reverse {α : Type*} (sq : VertexSeq α) :
@@ -362,41 +342,42 @@ lemma prepend_append_eq_append_prepend {α : Type*} (w : Walk α) (u v : α)
           rw [← prepend_append_eq_append_prepend]
           exact IsWalkIn.cons  w_1_app u_1 (hw_ih (by grind)) (by grind)
 
-@[grind →, grind ←] lemma IsMonotonePathInG.cons_front (G : ParentTree α) (w : Walk α) (dir : Direction)
+@[grind →, grind ←] lemma IsMonotonePathInG.cons_front (G : ParentTree α)
+  (w : Walk α) (dir : Direction)
     (u : α) (hu : u ∈ Nₚ(G,w.head))
     (huv : match dir with
         | Direction.Increasing => G.level w.head > G.level u
         | Direction.Decreasing => G.level u > G.level w.head)
-    (h : IsMonotonePathInG G dir w) :
-    IsMonotonePathInG G dir (w.prepend_vertex u (by grind)) := by
-      induction h with
+    (h : Walk.IsMonotone w G dir) (hw : IsWalkIn G w):
+    Walk.IsMonotone (w.prepend_vertex u (by grind)) G dir  := by
+      induction hw with
         | singleton =>
           simp only [prepend_vertex, VertexSeq.append]
           let w_single : Walk α := ⟨.singleton u, .singleton u⟩
           have h_u_in : u ∈ Vₚ(G) := edge_imp_in_v G v u hv hu
-          have h := IsMonotonePathInG.singleton (dir := dir) u h_u_in
           have h_walk_single : IsWalkIn G w_single :=
             IsWalkIn.singleton u h_u_in
           simp only [Walk.head,VertexSeq.head] at hu
           have h_v_neigh : v ∈ Nₚ(G, u) := edge_antisymm G v u hv hu
           simp [Walk.head] at huv
-          exact IsMonotonePathInG.cons (dir := dir) w_single v h_walk_single
-            h_v_neigh (by grind) h
+          grind
         | cons => 
           simp only [Walk.append_single, Walk.head, con_head_eq] at hu
           have hu_up : w_1.head ≠ u := by grind
-          let w_1_app := w_1.prepend_vertex u hu_up
-          rw [← prepend_append_eq_append_prepend]
+          let w_1_app := w_1.prepend_vertex u hu_up 
+          rw [← prepend_append_eq_append_prepend w_1 u u_1 hu_up]
           have hedg' : u_1 ∈ Nₚ(G, w_1_app.tail) := by grind
           have hw_tail : w_1.tail = w_1_app.tail := by grind
           have hw_head : (w_1.append_single u_1 (by grind)).head = w_1.head := by 
             simp [Walk.append_single]
             have := con_head_eq w_1.seq u_1
             grind
-          rw [hw_tail] at hdir
-          exact IsMonotonePathInG.cons w_1_app u_1 (by grind) hedg' hdir 
-            (h_mono_w_ih  (by grind)  (by grind))
-
+          simp [Walk.append_single]
+          simp only [Walk.head, append_single, con_head_eq, gt_iff_lt] at huv
+          simp [Walk.append_single] at h
+          have h_app := hw_ih (by grind) huv (by grind)
+          grind
+          
 
 
 lemma append_reverse_eq_reverse_prepend {α : Type*} (w : Walk α) (u : α)
@@ -406,7 +387,7 @@ lemma append_reverse_eq_reverse_prepend {α : Type*} (w : Walk α) (u : α)
       grind
 
 
-theorem IsWathInG.flip (G : ParentTree α) (w : Walk α)
+theorem IsWalkInG.flip (G : ParentTree α) (w : Walk α)
     (h : IsWalkIn G w) : IsWalkIn G w.reverse := by
       induction h with
       | singleton =>
@@ -418,19 +399,107 @@ theorem IsWathInG.flip (G : ParentTree α) (w : Walk α)
 
 
 theorem IsMonotonePathInG.flip (G : ParentTree α) (w : Walk α) (dir : Direction)
-    (h : IsMonotonePathInG G dir w) : IsMonotonePathInG G (dir.opposite) w.reverse := by
+    (h : IsWalkIn G w)
+    (hmono : Walk.IsMonotone w G dir) : Walk.IsMonotone w.reverse G (dir.opposite)  := by
+      
       induction h with
       | singleton =>
         simp only [Walk.reverse, singleton_reverse_eq]
-        exact  IsMonotonePathInG.singleton (dir := dir.opposite) v hv
+        grind
       | cons =>
         rw [append_reverse_eq_reverse_prepend]
+        have hw_ih_app :=  hw_ih (by simp [Walk.IsMonotone, Walk.append_single] at hmono;grind)
         exact IsMonotonePathInG.cons_front G w_1.reverse dir.opposite u  (by grind)
-          (by simp only [Walk.head_reverse, gt_iff_lt]; cases dir <;> exact hdir) h_mono_w_ih
+          (by cases dir <;> 
+              simp [Walk.IsMonotone, Walk.append_single] at hmono <;> 
+              simp [Direction.opposite, Walk.tail] <;>
+              grind)
+           hw_ih_app (IsWalkInG.flip G w_1 hw)
+        
+
+
+@[simp, grind] def sequence_mono_decomp (G : ParentTree α) :
+      VertexSeq α → VertexSeq α × VertexSeq α 
+    | .singleton v =>  ⟨.singleton v, .singleton v⟩
+    | .cons w' v =>  if G.level w'.tail < G.level v then -- Path is increasing
+        (sequence_mono_decomp G w').map id (fun wl => wl.cons v)
+      else -- If path stopped increasing
+        ⟨w'.cons v, .singleton  v⟩
+
+@[grind ←] lemma walk_ne_mem {α : Type*} (G : ParentTree α) (w : VertexSeq α) (v : α)
+  (hn : v ∉ w.toList) :
+    v ∉ (sequence_mono_decomp G w).fst.toList ∧ v ∉
+      (sequence_mono_decomp G w).snd.toList := by
+        induction w using sequence_mono_decomp.induct G with
+        | case1  => grind
+        | case2 => grind
+        | case3 => grind
+          
+
+
+lemma walk_decomp_is_walk (G: ParentTree α) (w : Walk α) (hw : w.IsPath):
+    IsWalk (sequence_mono_decomp G w.seq).fst
+      ∧ IsWalk (sequence_mono_decomp G w.seq).snd := by
+        set w_pair := sequence_mono_decomp G w.seq with hpair
+        induction hc: w.seq generalizing w with
+          | singleton =>
+              simp [hc] at *
+              grind
+          | cons w' v =>
+              have h_walk := w.valid
+              simp [hc]  at h_walk
+              cases h_walk with
+                | cons =>
+                  by_cases ht: G.level w'.tail <  G.level v
+                  · -- Positive Branch
+                    simp [hc, ht, Prod.map] at hpair
+                    let wₚ : Walk α := (⟨w', hw_1⟩)
+                    have hw_path : wₚ.IsPath := by
+                      simp [Walk.IsPath, hc, VertexSeq.toList] at hw
+                      simp [Walk.IsPath]
+                      grind
+
+                    have h_app := w_ih wₚ hw_path (by grind) (by grind)
+                    constructor
+                    · -- Decreasing sequence
+                      grind
+                    · --Increasing sequence
+                      --simp [wₚ] at h_app
+                      simp [hpair]
+                      have hv : v ∉ w'.toList := by grind
+                      have hv_ext : v ∉ w_pair.2.dropTail.toList := by 
+                        simp [w_pair, hc, ht, VertexSeq.dropTail]
+                        have h:= walk_ne_mem G w' v hv
+                        grind
+                      
+                      exact IsWalk.cons (sequence_mono_decomp G w').snd v
+                        (by grind) (by grind)
+                  · -- Negative branch
+                    simp [sequence_mono_decomp, hc, ht] at hpair
+                    let wₚ : Walk α := (⟨w', hw_1⟩)
+                    have hw_path : wₚ.IsPath := by
+                      simp [Walk.IsPath, hc, VertexSeq.toList] at hw
+                      simp [Walk.IsPath]
+                      grind
+                    have h_app := w_ih wₚ hw_path (by grind) (by grind)
+                    grind
 
 
 
 
+
+
+
+lemma IsMonotonePathInG.path_decomposition
+  (G : ParentTree α) (w : Walk α) (hw : IsWalkIn G w) (hp : w.IsPath) :
+      ∃ w1 w2 : Walk α, ∃ h , w = w1.append w2 h ∧ 
+        Walk.IsMonotone w1 G Direction.Decreasing  ∧
+          Walk.IsMonotone w2 G Direction.Increasing := by 
+            let w1 := List.takeWhile₂ (fun x y => G.level x > G.level y) 
+              (w.head :: w.seq.toList) (w.seq.toList)
+            
+            sorry
+          
 lemma parent_tree_is_acyclic (G : ParentTree α) (w : Walk α)
   (hw : IsWalkIn G w) :
     ¬ IsCycle w := by
@@ -440,10 +509,6 @@ lemma parent_tree_is_acyclic (G : ParentTree α) (w : Walk α)
     have h_convPath_isPath : convPath.IsPath :=  by
       simp [Walk.IsPath] at hpath
       simp [convPath, Walk.IsPath]
-
-
-
-
     sorry
 
 
