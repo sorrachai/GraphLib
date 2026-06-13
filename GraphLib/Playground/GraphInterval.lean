@@ -40,6 +40,12 @@ graph library, not in this playground. A few tagged `#general (specialised)` are
 only for `intervalGraph` but hold for every finite simple graph. We deliberately do not
 generalise them here — `grep '#general'` lists them all. --> It could be great to formalise
 those statements.
+
+
+To do: Make this more general: our result is simply the result of the
+Perfection of comparability graphs (it suffices again to prove `χ = ω` for
+the comparability graph of a poset, which is Dilworth's theorem because
+comparability graph is hereditary).
 -/
 
 namespace GraphLib.Playground
