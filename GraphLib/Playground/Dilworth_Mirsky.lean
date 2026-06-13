@@ -182,34 +182,35 @@ theorem IsChain.exists_injOn_mem_antichains {r : α → α → Prop} {ι : Type*
 /-! ### Weak duality, cardinality form
 
 The classical `Finset` statements, obtained by specializing the injective form to the family
-`(↑· : Finset α → Set α)`: an injection of `↑t` into `↑C` is exactly `t.card ≤ C.card`. -/
+`(↑· : Finset α → Set α)`: an injection of one side into the cover is exactly the `card ≤ card`
+bound. -/
 
-/-- **Weak duality (Dilworth):** the size of any antichain in `s` is bounded by the size of any
-chain cover of `s`. Stated for an arbitrary relation `r`; no order axioms are needed. -/
-lemma antichain_le_chain_cover {r : α → α → Prop} [DecidableEq α] {s t : Finset α}
-    {C : Finset (Finset α)} (ht_sub : t ⊆ s) (h_anti : IsAntichain r (t : Set α))
-    (hC_cover : s ⊆ C.biUnion id) (hC_chains : ∀ c ∈ C, IsChain r (c : Set α)) :
-    t.card ≤ C.card := by
-  obtain ⟨f, hmaps, hinj, -⟩ := h_anti.exists_injOn_mem_chains (ι := Finset α)
-    (c := fun i : Finset α => (i : Set α)) (C := (C : Set (Finset α)))
+/-- **Weak duality (Dilworth):** the size of any antichain `A` in `s` is bounded by the size of any
+chain cover `𝒞` of `s`. Stated for an arbitrary relation `r`; no order axioms are needed. -/
+lemma antichain_le_chain_cover {r : α → α → Prop} [DecidableEq α] {s A : Finset α}
+    {𝒞 : Finset (Finset α)} (hA_sub : A ⊆ s) (hA : IsAntichain r (A : Set α))
+    (hcov : s ⊆ 𝒞.biUnion id) (hchains : ∀ C ∈ 𝒞, IsChain r (C : Set α)) :
+    A.card ≤ 𝒞.card := by
+  obtain ⟨f, hmaps, hinj, -⟩ := hA.exists_injOn_mem_chains (ι := Finset α)
+    (c := fun C : Finset α => (C : Set α)) (C := (𝒞 : Set (Finset α)))
     (fun a ha => by
-      obtain ⟨i, hi, hai⟩ := Finset.mem_biUnion.mp (hC_cover (ht_sub (Finset.mem_coe.mp ha)))
-      exact ⟨i, Finset.mem_coe.mpr hi, Finset.mem_coe.mpr hai⟩)
-    fun i hi => hC_chains i (Finset.mem_coe.mp hi)
+      obtain ⟨C, hC, haC⟩ := Finset.mem_biUnion.mp (hcov (hA_sub (Finset.mem_coe.mp ha)))
+      exact ⟨C, Finset.mem_coe.mpr hC, Finset.mem_coe.mpr haC⟩)
+    fun C hC => hchains C (Finset.mem_coe.mp hC)
   exact Finset.card_le_card_of_injOn f hmaps hinj
 
-/-- **Weak duality (Mirsky):** the size of any chain in `s` is bounded by the size of any antichain
-cover of `s`. Stated for an arbitrary relation `r`; no order axioms are needed. -/
-lemma chain_le_antichain_cover {r : α → α → Prop} [DecidableEq α] {s t : Finset α}
-    {C : Finset (Finset α)} (ht_sub : t ⊆ s) (h_chain : IsChain r (t : Set α))
-    (hC_cover : s ⊆ C.biUnion id) (hC_antis : ∀ c ∈ C, IsAntichain r (c : Set α)) :
-    t.card ≤ C.card := by
-  obtain ⟨f, hmaps, hinj, -⟩ := h_chain.exists_injOn_mem_antichains (ι := Finset α)
-    (c := fun i : Finset α => (i : Set α)) (C := (C : Set (Finset α)))
+/-- **Weak duality (Mirsky):** the size of any chain `C` in `s` is bounded by the size of any
+antichain cover `𝒜` of `s`. Stated for an arbitrary relation `r`; no order axioms are needed. -/
+lemma chain_le_antichain_cover {r : α → α → Prop} [DecidableEq α] {s C : Finset α}
+    {𝒜 : Finset (Finset α)} (hC_sub : C ⊆ s) (hC : IsChain r (C : Set α))
+    (hcov : s ⊆ 𝒜.biUnion id) (hantis : ∀ A ∈ 𝒜, IsAntichain r (A : Set α)) :
+    C.card ≤ 𝒜.card := by
+  obtain ⟨f, hmaps, hinj, -⟩ := hC.exists_injOn_mem_antichains (ι := Finset α)
+    (c := fun A : Finset α => (A : Set α)) (C := (𝒜 : Set (Finset α)))
     (fun a ha => by
-      obtain ⟨i, hi, hai⟩ := Finset.mem_biUnion.mp (hC_cover (ht_sub (Finset.mem_coe.mp ha)))
-      exact ⟨i, Finset.mem_coe.mpr hi, Finset.mem_coe.mpr hai⟩)
-    fun i hi => hC_antis i (Finset.mem_coe.mp hi)
+      obtain ⟨A, hA, haA⟩ := Finset.mem_biUnion.mp (hcov (hC_sub (Finset.mem_coe.mp ha)))
+      exact ⟨A, Finset.mem_coe.mpr hA, Finset.mem_coe.mpr haA⟩)
+    fun A hA => hantis A (Finset.mem_coe.mp hA)
   exact Finset.card_le_card_of_injOn f hmaps hinj
 
 /-! ### The one-sided covering lemma -/
@@ -217,19 +218,19 @@ lemma chain_le_antichain_cover {r : α → α → Prop} [DecidableEq α] {s t : 
 /-- The weak-duality injection of an antichain into a chain cover of equal size is a bijection: each
 chain meets `A` in at most one point (so the choice is injective) and `C.card ≤ A.card` upgrades it
 to a surjection. The extremality of each `a` in its chain is added in the two corollaries below. -/
-theorem IsAntichain.exists_bijOn_chains [PartialOrder α] {A : Finset α} {C : Finset (Finset α)}
-    (hA : IsAntichain (· ≤ ·) (A : Set α)) (hcover : ∀ a ∈ A, ∃ c ∈ C, a ∈ c)
-    (hchains : ∀ c ∈ C, IsChain (· ≤ ·) (c : Set α)) (hcard : C.card ≤ A.card) :
-    ∃ f : α → Finset α, Set.BijOn f (A : Set α) (C : Set (Finset α)) ∧ ∀ a ∈ A, a ∈ f a := by
-  choose! f hfC hfmem using hcover
-  have hmaps : Set.MapsTo f (A : Set α) (C : Set (Finset α)) := fun a ha =>
-    Finset.mem_coe.mpr (hfC a (Finset.mem_coe.mp ha))
+theorem IsAntichain.exists_bijOn_chains [PartialOrder α] {A : Finset α} {𝒞 : Finset (Finset α)}
+    (hA : IsAntichain (· ≤ ·) (A : Set α)) (hcover : ∀ a ∈ A, ∃ C ∈ 𝒞, a ∈ C)
+    (hchains : ∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α)) (hcard : 𝒞.card ≤ A.card) :
+    ∃ f : α → Finset α, Set.BijOn f (A : Set α) (𝒞 : Set (Finset α)) ∧ ∀ a ∈ A, a ∈ f a := by
+  choose! f hf𝒞 hfmem using hcover
+  have hmaps : Set.MapsTo f (A : Set α) (𝒞 : Set (Finset α)) := fun a ha =>
+    Finset.mem_coe.mpr (hf𝒞 a (Finset.mem_coe.mp ha))
   have hinj : Set.InjOn f (A : Set α) := by
     intro a ha b hb hfab
     rw [Finset.mem_coe] at ha hb
     by_contra hne
     have hbfa : b ∈ f a := hfab ▸ hfmem b hb
-    rcases hchains (f a) (hfC a ha) (Finset.mem_coe.mpr (hfmem a ha))
+    rcases hchains (f a) (hf𝒞 a ha) (Finset.mem_coe.mpr (hfmem a ha))
       (Finset.mem_coe.mpr hbfa) hne with h | h
     · exact hne (hA.eq (Finset.mem_coe.mpr ha) (Finset.mem_coe.mpr hb) h)
     · exact hne (hA.eq' (Finset.mem_coe.mpr ha) (Finset.mem_coe.mpr hb) h)
@@ -238,171 +239,171 @@ theorem IsAntichain.exists_bijOn_chains [PartialOrder α] {A : Finset α} {C : F
 /-- **One-sided covering, lower version:** if at most `|A|` chains cover a set of elements each
 lying below the antichain `A`, then the chains biject with `A`, each `a ∈ A` being the greatest
 element of its chain. -/
-theorem IsAntichain.exists_bijOn_chains_le [PartialOrder α] {A : Finset α} {C : Finset (Finset α)}
-    (hA : IsAntichain (· ≤ ·) (A : Set α)) (hcover : ∀ a ∈ A, ∃ c ∈ C, a ∈ c)
-    (hchains : ∀ c ∈ C, IsChain (· ≤ ·) (c : Set α))
-    (hbelow : ∀ c ∈ C, ∀ x ∈ c, ∃ a ∈ A, x ≤ a) (hcard : C.card ≤ A.card) :
-    ∃ f : α → Finset α, Set.BijOn f (A : Set α) (C : Set (Finset α)) ∧
+theorem IsAntichain.exists_bijOn_chains_le [PartialOrder α] {A : Finset α} {𝒞 : Finset (Finset α)}
+    (hA : IsAntichain (· ≤ ·) (A : Set α)) (hcover : ∀ a ∈ A, ∃ C ∈ 𝒞, a ∈ C)
+    (hchains : ∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α))
+    (hbelow : ∀ C ∈ 𝒞, ∀ x ∈ C, ∃ a ∈ A, x ≤ a) (hcard : 𝒞.card ≤ A.card) :
+    ∃ f : α → Finset α, Set.BijOn f (A : Set α) (𝒞 : Set (Finset α)) ∧
       ∀ a ∈ A, a ∈ f a ∧ ∀ x ∈ f a, x ≤ a := by
   obtain ⟨f, hbij, hfmem⟩ := hA.exists_bijOn_chains hcover hchains hcard
   refine ⟨f, hbij, fun a ha => ⟨hfmem a ha, fun x hx => ?_⟩⟩
-  have hfaC : f a ∈ C := Finset.mem_coe.mp (hbij.mapsTo (Finset.mem_coe.mpr ha))
+  have hfa𝒞 : f a ∈ 𝒞 := Finset.mem_coe.mp (hbij.mapsTo (Finset.mem_coe.mpr ha))
   rcases eq_or_ne x a with rfl | hxa
   · exact le_rfl
-  rcases hchains (f a) hfaC (Finset.mem_coe.mpr hx) (Finset.mem_coe.mpr (hfmem a ha)) hxa with h | h
+  rcases hchains (f a) hfa𝒞 (Finset.mem_coe.mpr hx) (Finset.mem_coe.mpr (hfmem a ha)) hxa with h | h
   · exact h
-  · obtain ⟨a', ha', hxa'⟩ := hbelow (f a) hfaC x hx
+  · obtain ⟨a', ha', hxa'⟩ := hbelow (f a) hfa𝒞 x hx
     rwa [← hA.eq (Finset.mem_coe.mpr ha) (Finset.mem_coe.mpr ha') (h.trans hxa')] at hxa'
 
 /-- **One-sided covering, upper version:** if at most `|A|` chains cover a set of elements each
 lying above the antichain `A`, then the chains biject with `A`, each `a ∈ A` being the least element
 of its chain. -/
-theorem IsAntichain.exists_bijOn_chains_ge [PartialOrder α] {A : Finset α} {C : Finset (Finset α)}
-    (hA : IsAntichain (· ≤ ·) (A : Set α)) (hcover : ∀ a ∈ A, ∃ c ∈ C, a ∈ c)
-    (hchains : ∀ c ∈ C, IsChain (· ≤ ·) (c : Set α))
-    (habove : ∀ c ∈ C, ∀ x ∈ c, ∃ a ∈ A, a ≤ x) (hcard : C.card ≤ A.card) :
-    ∃ f : α → Finset α, Set.BijOn f (A : Set α) (C : Set (Finset α)) ∧
+theorem IsAntichain.exists_bijOn_chains_ge [PartialOrder α] {A : Finset α} {𝒞 : Finset (Finset α)}
+    (hA : IsAntichain (· ≤ ·) (A : Set α)) (hcover : ∀ a ∈ A, ∃ C ∈ 𝒞, a ∈ C)
+    (hchains : ∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α))
+    (habove : ∀ C ∈ 𝒞, ∀ x ∈ C, ∃ a ∈ A, a ≤ x) (hcard : 𝒞.card ≤ A.card) :
+    ∃ f : α → Finset α, Set.BijOn f (A : Set α) (𝒞 : Set (Finset α)) ∧
       ∀ a ∈ A, a ∈ f a ∧ ∀ x ∈ f a, a ≤ x := by
   obtain ⟨f, hbij, hfmem⟩ := hA.exists_bijOn_chains hcover hchains hcard
   refine ⟨f, hbij, fun a ha => ⟨hfmem a ha, fun x hx => ?_⟩⟩
-  have hfaC : f a ∈ C := Finset.mem_coe.mp (hbij.mapsTo (Finset.mem_coe.mpr ha))
+  have hfa𝒞 : f a ∈ 𝒞 := Finset.mem_coe.mp (hbij.mapsTo (Finset.mem_coe.mpr ha))
   rcases eq_or_ne x a with rfl | hxa
   · exact le_rfl
-  rcases hchains (f a) hfaC (Finset.mem_coe.mpr (hfmem a ha)) (Finset.mem_coe.mpr hx)
+  rcases hchains (f a) hfa𝒞 (Finset.mem_coe.mpr (hfmem a ha)) (Finset.mem_coe.mpr hx)
     (Ne.symm hxa) with h | h
   · exact h
-  · obtain ⟨a', ha', ha'x⟩ := habove (f a) hfaC x hx
+  · obtain ⟨a', ha', ha'x⟩ := habove (f a) hfa𝒞 x hx
     rwa [hA.eq (Finset.mem_coe.mpr ha') (Finset.mem_coe.mpr ha) (ha'x.trans h)] at ha'x
 
 /-! ### Dilworth's theorem -/
 
 open Classical in
-/-- **Gluing step of Dilworth's induction.** Let `B` be an antichain contained in `s` and saturated
-in `s` (every element of `s` is comparable to some element of `B`). If the lower closure
-`{p ∈ s | ∃ a ∈ B, p ≤ a}` and the upper closure `{p ∈ s | ∃ a ∈ B, a ≤ p}` each admit a chain
-cover with exactly `|B|` chains, then so does `s`: each `a ∈ B` is the top of its chain in the lower
+/-- **Gluing step of Dilworth's induction.** Let `A` be an antichain contained in `s` and saturated
+in `s` (every element of `s` is comparable to some element of `A`). If the lower closure
+`{p ∈ s | ∃ a ∈ A, p ≤ a}` and the upper closure `{p ∈ s | ∃ a ∈ A, a ≤ p}` each admit a chain
+cover with exactly `|A|` chains, then so does `s`: each `a ∈ A` is the top of its chain in the lower
 cover and the bottom of its chain in the upper cover (one-sided covering), so the two chains glue
 along `a` into a single chain, and these glued chains cover `s`. -/
-theorem chainCover_glue [PartialOrder α] [DecidableEq α] {s B : Finset α}
-    {C₁ C₂ : Finset (Finset α)} (hBsub : B ⊆ s) (hBanti : IsAntichain (· ≤ ·) (B : Set α))
-    (hsat : ∀ p ∈ s, ∃ a ∈ B, p ≤ a ∨ a ≤ p)
-    (hcov₁ : (s.filter fun p => ∃ a ∈ B, p ≤ a) = C₁.biUnion id)
-    (hch₁ : ∀ c ∈ C₁, IsChain (· ≤ ·) (c : Set α)) (hC₁card : C₁.card = B.card)
-    (hcov₂ : (s.filter fun p => ∃ a ∈ B, a ≤ p) = C₂.biUnion id)
-    (hch₂ : ∀ c ∈ C₂, IsChain (· ≤ ·) (c : Set α)) (hC₂card : C₂.card = B.card) :
-    ∃ C : Finset (Finset α), s = C.biUnion id ∧
-      (∀ c ∈ C, IsChain (· ≤ ·) (c : Set α)) ∧ C.card = B.card := by
-  set D₁ := s.filter (fun p => ∃ a ∈ B, p ≤ a) with hD₁def
-  set D₂ := s.filter (fun p => ∃ a ∈ B, a ≤ p) with hD₂def
-  have hBD₁ : B ⊆ D₁ := fun a ha => Finset.mem_filter.mpr ⟨hBsub ha, a, ha, le_rfl⟩
-  have hBD₂ : B ⊆ D₂ := fun a ha => Finset.mem_filter.mpr ⟨hBsub ha, a, ha, le_rfl⟩
-  obtain ⟨f₁, hf₁bij, hf₁⟩ := hBanti.exists_bijOn_chains_le
-    (fun a ha => by have := hBD₁ ha; rw [hcov₁] at this; simpa using this) hch₁
-    (fun c hc x hx => by
-      have hxD : x ∈ D₁ := by rw [hcov₁]; exact Finset.mem_biUnion.mpr ⟨c, hc, hx⟩
+theorem chainCover_glue [PartialOrder α] [DecidableEq α] {s A : Finset α}
+    {𝒞₁ 𝒞₂ : Finset (Finset α)} (hAsub : A ⊆ s) (hA : IsAntichain (· ≤ ·) (A : Set α))
+    (hsat : ∀ p ∈ s, ∃ a ∈ A, p ≤ a ∨ a ≤ p)
+    (hcov₁ : (s.filter fun p => ∃ a ∈ A, p ≤ a) = 𝒞₁.biUnion id)
+    (hch₁ : ∀ C ∈ 𝒞₁, IsChain (· ≤ ·) (C : Set α)) (hcard₁ : 𝒞₁.card = A.card)
+    (hcov₂ : (s.filter fun p => ∃ a ∈ A, a ≤ p) = 𝒞₂.biUnion id)
+    (hch₂ : ∀ C ∈ 𝒞₂, IsChain (· ≤ ·) (C : Set α)) (hcard₂ : 𝒞₂.card = A.card) :
+    ∃ 𝒞 : Finset (Finset α), s = 𝒞.biUnion id ∧
+      (∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α)) ∧ 𝒞.card = A.card := by
+  set D₁ := s.filter (fun p => ∃ a ∈ A, p ≤ a) with hD₁def
+  set D₂ := s.filter (fun p => ∃ a ∈ A, a ≤ p) with hD₂def
+  have hAD₁ : A ⊆ D₁ := fun a ha => Finset.mem_filter.mpr ⟨hAsub ha, a, ha, le_rfl⟩
+  have hAD₂ : A ⊆ D₂ := fun a ha => Finset.mem_filter.mpr ⟨hAsub ha, a, ha, le_rfl⟩
+  obtain ⟨f₁, hf₁bij, hf₁⟩ := hA.exists_bijOn_chains_le
+    (fun a ha => by have := hAD₁ ha; rw [hcov₁] at this; simpa using this) hch₁
+    (fun C hC x hx => by
+      have hxD : x ∈ D₁ := by rw [hcov₁]; exact Finset.mem_biUnion.mpr ⟨C, hC, hx⟩
       exact (Finset.mem_filter.mp hxD).2)
-    hC₁card.le
-  obtain ⟨f₂, hf₂bij, hf₂⟩ := hBanti.exists_bijOn_chains_ge
-    (fun a ha => by have := hBD₂ ha; rw [hcov₂] at this; simpa using this) hch₂
-    (fun c hc x hx => by
-      have hxD : x ∈ D₂ := by rw [hcov₂]; exact Finset.mem_biUnion.mpr ⟨c, hc, hx⟩
+    hcard₁.le
+  obtain ⟨f₂, hf₂bij, hf₂⟩ := hA.exists_bijOn_chains_ge
+    (fun a ha => by have := hAD₂ ha; rw [hcov₂] at this; simpa using this) hch₂
+    (fun C hC x hx => by
+      have hxD : x ∈ D₂ := by rw [hcov₂]; exact Finset.mem_biUnion.mpr ⟨C, hC, hx⟩
       exact (Finset.mem_filter.mp hxD).2)
-    hC₂card.le
-  have hf₁C : ∀ a ∈ B, f₁ a ∈ C₁ := fun a ha =>
+    hcard₂.le
+  have hf₁𝒞 : ∀ a ∈ A, f₁ a ∈ 𝒞₁ := fun a ha =>
     Finset.mem_coe.mp (hf₁bij.mapsTo (Finset.mem_coe.mpr ha))
-  have hf₂C : ∀ a ∈ B, f₂ a ∈ C₂ := fun a ha =>
+  have hf₂𝒞 : ∀ a ∈ A, f₂ a ∈ 𝒞₂ := fun a ha =>
     Finset.mem_coe.mp (hf₂bij.mapsTo (Finset.mem_coe.mpr ha))
-  -- through each `a ∈ B` runs one chain of the new cover
+  -- through each `a ∈ A` runs one chain of the new cover
   set K : α → Finset α := fun a => f₁ a ∪ f₂ a with hKdef
-  have hKchain : ∀ a ∈ B, IsChain (· ≤ ·) (K a : Set α) := by
-    intro a haB u hu v hv huv
+  have hKchain : ∀ a ∈ A, IsChain (· ≤ ·) (K a : Set α) := by
+    intro a ha u hu v hv huv
     rw [Finset.mem_coe, hKdef, Finset.mem_union] at hu hv
     rcases hu with hu | hu <;> rcases hv with hv | hv
-    · exact hch₁ (f₁ a) (hf₁C a haB) (Finset.mem_coe.mpr hu) (Finset.mem_coe.mpr hv) huv
-    · exact Or.inl (le_trans ((hf₁ a haB).2 u hu) ((hf₂ a haB).2 v hv))
-    · exact Or.inr (le_trans ((hf₁ a haB).2 v hv) ((hf₂ a haB).2 u hu))
-    · exact hch₂ (f₂ a) (hf₂C a haB) (Finset.mem_coe.mpr hu) (Finset.mem_coe.mpr hv) huv
-  have hKmem : ∀ a ∈ B, a ∈ K a := fun a ha => Finset.mem_union_left _ ((hf₁ a ha).1)
-  have hKinj : Set.InjOn K (B : Set α) := by
+    · exact hch₁ (f₁ a) (hf₁𝒞 a ha) (Finset.mem_coe.mpr hu) (Finset.mem_coe.mpr hv) huv
+    · exact Or.inl (le_trans ((hf₁ a ha).2 u hu) ((hf₂ a ha).2 v hv))
+    · exact Or.inr (le_trans ((hf₁ a ha).2 v hv) ((hf₂ a ha).2 u hu))
+    · exact hch₂ (f₂ a) (hf₂𝒞 a ha) (Finset.mem_coe.mpr hu) (Finset.mem_coe.mpr hv) huv
+  have hKmem : ∀ a ∈ A, a ∈ K a := fun a ha => Finset.mem_union_left _ ((hf₁ a ha).1)
+  have hKinj : Set.InjOn K (A : Set α) := by
     intro a ha b hb hab
     refine subsingleton_of_isChain_of_isAntichain
       (IsChain.mono Set.inter_subset_right (hKchain a (Finset.mem_coe.mp ha)))
-      (hBanti.subset Set.inter_subset_left)
+      (hA.subset Set.inter_subset_left)
       ⟨ha, Finset.mem_coe.mpr (hKmem a (Finset.mem_coe.mp ha))⟩ ⟨hb, ?_⟩
     rw [hab]
     exact Finset.mem_coe.mpr (hKmem b (Finset.mem_coe.mp hb))
-  refine ⟨B.image K, Finset.Subset.antisymm (fun p hp => ?_) (fun p hp => ?_),
-    fun c hc => ?_, Finset.card_image_of_injOn hKinj⟩
-  · obtain ⟨a, haB, hpa | hap⟩ := hsat p hp
-    · have hpD : p ∈ D₁ := Finset.mem_filter.mpr ⟨hp, a, haB, hpa⟩
+  refine ⟨A.image K, Finset.Subset.antisymm (fun p hp => ?_) (fun p hp => ?_),
+    fun C hC => ?_, Finset.card_image_of_injOn hKinj⟩
+  · obtain ⟨a, ha, hpa | hap⟩ := hsat p hp
+    · have hpD : p ∈ D₁ := Finset.mem_filter.mpr ⟨hp, a, ha, hpa⟩
       rw [hcov₁] at hpD
-      obtain ⟨c, hc, hpc⟩ := Finset.mem_biUnion.mp hpD
-      obtain ⟨a', ha'B, rfl⟩ := hf₁bij.surjOn (Finset.mem_coe.mpr hc)
+      obtain ⟨C, hC, hpC⟩ := Finset.mem_biUnion.mp hpD
+      obtain ⟨a', ha', rfl⟩ := hf₁bij.surjOn (Finset.mem_coe.mpr hC)
       exact Finset.mem_biUnion.mpr ⟨K a',
-        Finset.mem_image_of_mem K (Finset.mem_coe.mp ha'B), Finset.mem_union_left _ hpc⟩
-    · have hpD : p ∈ D₂ := Finset.mem_filter.mpr ⟨hp, a, haB, hap⟩
+        Finset.mem_image_of_mem K (Finset.mem_coe.mp ha'), Finset.mem_union_left _ hpC⟩
+    · have hpD : p ∈ D₂ := Finset.mem_filter.mpr ⟨hp, a, ha, hap⟩
       rw [hcov₂] at hpD
-      obtain ⟨c, hc, hpc⟩ := Finset.mem_biUnion.mp hpD
-      obtain ⟨a', ha'B, rfl⟩ := hf₂bij.surjOn (Finset.mem_coe.mpr hc)
+      obtain ⟨C, hC, hpC⟩ := Finset.mem_biUnion.mp hpD
+      obtain ⟨a', ha', rfl⟩ := hf₂bij.surjOn (Finset.mem_coe.mpr hC)
       exact Finset.mem_biUnion.mpr ⟨K a',
-        Finset.mem_image_of_mem K (Finset.mem_coe.mp ha'B), Finset.mem_union_right _ hpc⟩
-  · obtain ⟨c, hcC, hpc⟩ := Finset.mem_biUnion.mp hp
-    obtain ⟨a, haB, rfl⟩ := Finset.mem_image.mp hcC
-    rcases Finset.mem_union.mp hpc with h | h
+        Finset.mem_image_of_mem K (Finset.mem_coe.mp ha'), Finset.mem_union_right _ hpC⟩
+  · obtain ⟨C, hC𝒞, hpC⟩ := Finset.mem_biUnion.mp hp
+    obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hC𝒞
+    rcases Finset.mem_union.mp hpC with h | h
     · have hsub : f₁ a ⊆ D₁ := by
-        rw [hcov₁]; exact Finset.subset_biUnion_of_mem id (hf₁C a haB)
+        rw [hcov₁]; exact Finset.subset_biUnion_of_mem id (hf₁𝒞 a ha)
       exact Finset.filter_subset _ _ (hsub h)
     · have hsub : f₂ a ⊆ D₂ := by
-        rw [hcov₂]; exact Finset.subset_biUnion_of_mem id (hf₂C a haB)
+        rw [hcov₂]; exact Finset.subset_biUnion_of_mem id (hf₂𝒞 a ha)
       exact Finset.filter_subset _ _ (hsub h)
-  · obtain ⟨a, haB, rfl⟩ := Finset.mem_image.mp hc
-    exact hKchain a haB
+  · obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hC
+    exact hKchain a ha
 
 /-- **Dilworth's theorem (strong duality):** in any finite subset `s` of a partial order, some
 antichain and some chain cover have the same size. Together with `antichain_le_chain_cover` this
 expresses that the largest antichain and the smallest chain cover have a common size. -/
 theorem dilworth [PartialOrder α] [DecidableEq α] (s : Finset α) :
-    ∃ (t : Finset α) (C : Finset (Finset α)),
-      t ⊆ s ∧ IsAntichain (· ≤ ·) (t : Set α) ∧
-      s = C.biUnion id ∧ (∀ c ∈ C, IsChain (· ≤ ·) (c : Set α)) ∧
-      C.card = t.card := by
+    ∃ (A : Finset α) (𝒞 : Finset (Finset α)),
+      A ⊆ s ∧ IsAntichain (· ≤ ·) (A : Set α) ∧
+      s = 𝒞.biUnion id ∧ (∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α)) ∧
+      𝒞.card = A.card := by
   classical
   induction s using Finset.strongInduction with
   | _ s ih =>
   -- a maximum-cardinality antichain `A` of `s`
   obtain ⟨A, hAmem, hAmax⟩ :=
-    (s.powerset.filter fun t : Finset α => IsAntichain (· ≤ ·) (t : Set α))
+    (s.powerset.filter fun A : Finset α => IsAntichain (· ≤ ·) (A : Set α))
       |>.exists_max_image Finset.card
         ⟨∅, Finset.mem_filter.mpr ⟨Finset.empty_mem_powerset s, by
           rw [Finset.coe_empty]; exact IsAntichain.empty⟩⟩
   rw [Finset.mem_filter, Finset.mem_powerset] at hAmem
   obtain ⟨hAsub, hAanti⟩ := hAmem
-  have hAmax' : ∀ t' : Finset α, t' ⊆ s → IsAntichain (· ≤ ·) (t' : Set α) →
-      t'.card ≤ A.card := fun t' h1 h2 =>
-    hAmax t' (Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr h1, h2⟩)
+  have hAmax' : ∀ A' : Finset α, A' ⊆ s → IsAntichain (· ≤ ·) (A' : Set α) →
+      A'.card ≤ A.card := fun A' h1 h2 =>
+    hAmax A' (Finset.mem_filter.mpr ⟨Finset.mem_powerset.mpr h1, h2⟩)
   by_cases hcase : ∃ B, B ⊆ s ∧ IsAntichain (· ≤ ·) (B : Set α) ∧ B.card = A.card ∧
       s.filter (fun p => ∃ a ∈ B, p ≤ a) ≠ s ∧ s.filter (fun p => ∃ a ∈ B, a ≤ p) ≠ s
   · -- a maximum antichain `B` whose lower and upper closures are both proper: recurse on both
     -- closures and glue the two chain covers through `B`.
     obtain ⟨B, hBsub, hBanti, hBcard, hD₁ne, hD₂ne⟩ := hcase
-    obtain ⟨t₁, C₁, ht₁sub, ht₁anti, hcov₁, hch₁, _⟩ :=
+    obtain ⟨A₁, 𝒞₁, hA₁sub, hA₁anti, hcov₁, hch₁, _⟩ :=
       ih _ ((Finset.filter_subset _ _).ssubset_of_ne hD₁ne)
-    obtain ⟨t₂, C₂, ht₂sub, ht₂anti, hcov₂, hch₂, _⟩ :=
+    obtain ⟨A₂, 𝒞₂, hA₂sub, hA₂anti, hcov₂, hch₂, _⟩ :=
       ih _ ((Finset.filter_subset _ _).ssubset_of_ne hD₂ne)
     have hBD₁ : B ⊆ s.filter (fun p => ∃ a ∈ B, p ≤ a) :=
       fun a ha => Finset.mem_filter.mpr ⟨hBsub ha, a, ha, le_rfl⟩
     have hBD₂ : B ⊆ s.filter (fun p => ∃ a ∈ B, a ≤ p) :=
       fun a ha => Finset.mem_filter.mpr ⟨hBsub ha, a, ha, le_rfl⟩
     -- both covers have exactly `|B|` chains (weak duality, and `B` is a maximum antichain)
-    have hC₁card : C₁.card = B.card := by
-      have h1 : B.card ≤ C₁.card :=
+    have hcard₁ : 𝒞₁.card = B.card := by
+      have h1 : B.card ≤ 𝒞₁.card :=
         antichain_le_chain_cover hBD₁ hBanti (fun x hx => hcov₁ ▸ hx) hch₁
-      have h2 : t₁.card ≤ A.card := hAmax' t₁ (ht₁sub.trans (Finset.filter_subset _ _)) ht₁anti
+      have h2 : A₁.card ≤ A.card := hAmax' A₁ (hA₁sub.trans (Finset.filter_subset _ _)) hA₁anti
       omega
-    have hC₂card : C₂.card = B.card := by
-      have h1 : B.card ≤ C₂.card :=
+    have hcard₂ : 𝒞₂.card = B.card := by
+      have h1 : B.card ≤ 𝒞₂.card :=
         antichain_le_chain_cover hBD₂ hBanti (fun x hx => hcov₂ ▸ hx) hch₂
-      have h2 : t₂.card ≤ A.card := hAmax' t₂ (ht₂sub.trans (Finset.filter_subset _ _)) ht₂anti
+      have h2 : A₂.card ≤ A.card := hAmax' A₂ (hA₂sub.trans (Finset.filter_subset _ _)) hA₂anti
       omega
     -- `B`, being of maximum cardinality, is saturated in `s`
     have hsat : ∀ p ∈ s, ∃ a ∈ B, p ≤ a ∨ a ≤ p := by
@@ -417,9 +418,9 @@ theorem dilworth [PartialOrder α] [DecidableEq α] (s : Finset α) :
       have := hAmax' (insert p B) (Finset.insert_subset hp hBsub) hins
       rw [Finset.card_insert_of_notMem hpB, hBcard] at this
       omega
-    obtain ⟨C, hcov, hch, hcard⟩ :=
-      chainCover_glue hBsub hBanti hsat hcov₁ hch₁ hC₁card hcov₂ hch₂ hC₂card
-    exact ⟨B, C, hBsub, hBanti, hcov, hch, hcard⟩
+    obtain ⟨𝒞, hcov, hch, hcard⟩ :=
+      chainCover_glue hBsub hBanti hsat hcov₁ hch₁ hcard₁ hcov₂ hch₂ hcard₂
+    exact ⟨B, 𝒞, hBsub, hBanti, hcov, hch, hcard⟩
   · -- every maximum antichain has full lower or upper closure: remove a two-element chain
     -- `{x, y}` (a maximal element over a minimal one), which decreases the width.
     push Not at hcase
@@ -444,45 +445,50 @@ theorem dilworth [PartialOrder α] [DecidableEq α] (s : Finset α) :
       rw [hb]
       exact hyx
     -- the width strictly drops after removing `{x, y}`
-    have hwidth : ∀ t' ⊆ s \ p, IsAntichain (· ≤ ·) (t' : Set α) → t'.card < A.card := by
-      intro t' ht'sub ht'anti
-      rcases lt_or_eq_of_le (hAmax' t' (ht'sub.trans (Finset.sdiff_subset)) ht'anti) with h | h
+    -- Note on the width drop: the width of `s \ p` is `< A.card` because `s \ p` contains no
+    -- antichain of size `A.card` (and any larger antichain would contain one of that size). Rather
+    -- than formalize that general subset property, we leverage `hAmax'` to bound the size from
+    -- above and split on equality. The global maximality of `A` is only strictly needed for Case 1;
+    -- here it merely shortens the argument (the size-`A.card` contradiction is the real content).
+    have hwidth : ∀ A' ⊆ s \ p, IsAntichain (· ≤ ·) (A' : Set α) → A'.card < A.card := by
+      intro A' hA'sub hA'anti
+      rcases lt_or_eq_of_le (hAmax' A' (hA'sub.trans (Finset.sdiff_subset)) hA'anti) with h | h
       · exact h
       exfalso
-      rcases eq_or_ne (s.filter (fun q => ∃ a ∈ t', q ≤ a)) s with hD | hD
+      rcases eq_or_ne (s.filter (fun q => ∃ a ∈ A', q ≤ a)) s with hD | hD
       · -- the lower closure is full: it captures the maximal element `x`
-        have hx' : x ∈ s.filter (fun q => ∃ a ∈ t', q ≤ a) := by rw [hD]; exact hx.1
-        obtain ⟨a, hat', hxa⟩ := (Finset.mem_filter.mp hx').2
-        have haS : a ∈ s := (Finset.mem_sdiff.mp (ht'sub hat')).1
+        have hx' : x ∈ s.filter (fun q => ∃ a ∈ A', q ≤ a) := by rw [hD]; exact hx.1
+        obtain ⟨a, haA', hxa⟩ := (Finset.mem_filter.mp hx').2
+        have haS : a ∈ s := (Finset.mem_sdiff.mp (hA'sub haA')).1
         have hax : a = x := le_antisymm (hx.2 haS hxa) hxa
-        exact (Finset.mem_sdiff.mp (ht'sub hat')).2 (by rw [hax]; exact hxp)
+        exact (Finset.mem_sdiff.mp (hA'sub haA')).2 (by rw [hax]; exact hxp)
       · -- otherwise the upper closure is full: it captures the minimal element `y`
-        have hU := hcase t' (ht'sub.trans (Finset.sdiff_subset)) ht'anti h hD
-        have hy' : y ∈ s.filter (fun q => ∃ a ∈ t', a ≤ q) := by rw [hU]; exact hys
-        obtain ⟨a, hat', hay⟩ := (Finset.mem_filter.mp hy').2
-        have haS : a ∈ s := (Finset.mem_sdiff.mp (ht'sub hat')).1
+        have hU := hcase A' (hA'sub.trans (Finset.sdiff_subset)) hA'anti h hD
+        have hy' : y ∈ s.filter (fun q => ∃ a ∈ A', a ≤ q) := by rw [hU]; exact hys
+        obtain ⟨a, haA', hay⟩ := (Finset.mem_filter.mp hy').2
+        have haS : a ∈ s := (Finset.mem_sdiff.mp (hA'sub haA')).1
         have hay' : a = y := le_antisymm hay (hy_min a haS hay)
-        exact (Finset.mem_sdiff.mp (ht'sub hat')).2 (by rw [hay']; exact hyp)
-    obtain ⟨t'', C'', ht''sub, ht''anti, hcov'', hch'', hcard''⟩ :=
+        exact (Finset.mem_sdiff.mp (hA'sub haA')).2 (by rw [hay']; exact hyp)
+    obtain ⟨A'', 𝒞'', hA''sub, hA''anti, hcov'', hch'', hcard''⟩ :=
       ih (s \ p) (Finset.sdiff_ssubset hp_sub ⟨x, hxp⟩)
-    have hpC'' : p ∉ C'' := by
+    have hp𝒞'' : p ∉ 𝒞'' := by
       intro h
       have hx'' : x ∈ s \ p := by
         rw [hcov'']; exact Finset.mem_biUnion.mpr ⟨p, h, hxp⟩
       exact (Finset.mem_sdiff.mp hx'').2 hxp
-    have hcovIns : s = (insert p C'').biUnion id := by
+    have hcovIns : s = (insert p 𝒞'').biUnion id := by
       rw [Finset.biUnion_insert, ← hcov'', id_eq]
       exact (Finset.union_sdiff_of_subset hp_sub).symm
-    have hchainsIns : ∀ c ∈ insert p C'', IsChain (· ≤ ·) (c : Set α) := by
-      intro c hc
-      rcases Finset.mem_insert.mp hc with rfl | hc
+    have hchainsIns : ∀ C ∈ insert p 𝒞'', IsChain (· ≤ ·) (C : Set α) := by
+      intro C hC
+      rcases Finset.mem_insert.mp hC with rfl | hC
       · exact hp_chain
-      · exact hch'' c hc
-    refine ⟨A, insert p C'', hAsub, hAanti, hcovIns, hchainsIns, ?_⟩
-    have hwd : A.card ≤ (insert p C'').card :=
+      · exact hch'' C hC
+    refine ⟨A, insert p 𝒞'', hAsub, hAanti, hcovIns, hchainsIns, ?_⟩
+    have hwd : A.card ≤ (insert p 𝒞'').card :=
       antichain_le_chain_cover hAsub hAanti (fun z hz => hcovIns ▸ hz) hchainsIns
-    have hlt : t''.card < A.card := hwidth t'' ht''sub ht''anti
-    rw [Finset.card_insert_of_notMem hpC''] at hwd ⊢
+    have hlt : A''.card < A.card := hwidth A'' hA''sub hA''anti
+    rw [Finset.card_insert_of_notMem hp𝒞''] at hwd ⊢
     omega
 
 /-! ### Mirsky's theorem
@@ -491,13 +497,13 @@ The proof below (peel off the minimal elements, one antichain per round) predate
 this file follows and will be aligned with its dual treatment when that proof is supplied. -/
 
 /-- A nonempty finite chain has a least element. -/
-theorem exists_min_mem_of_isChain [Preorder α] {c : Finset α}
-    (hc : IsChain (· ≤ ·) (c : Set α)) (hne : c.Nonempty) : ∃ m ∈ c, ∀ y ∈ c, m ≤ y := by
-  obtain ⟨m, hm⟩ := c.exists_minimal hne
+theorem exists_min_mem_of_isChain [Preorder α] {C : Finset α}
+    (hC : IsChain (· ≤ ·) (C : Set α)) (hne : C.Nonempty) : ∃ m ∈ C, ∀ y ∈ C, m ≤ y := by
+  obtain ⟨m, hm⟩ := C.exists_minimal hne
   refine ⟨m, hm.1, fun y hy => ?_⟩
   rcases eq_or_ne m y with rfl | hmy
   · exact le_rfl
-  · rcases hc (Finset.mem_coe.mpr hm.1) (Finset.mem_coe.mpr hy) hmy with h | h
+  · rcases hC (Finset.mem_coe.mpr hm.1) (Finset.mem_coe.mpr hy) hmy with h | h
     · exact h
     · exact hm.2 hy h
 
@@ -505,10 +511,10 @@ theorem exists_min_mem_of_isChain [Preorder α] {c : Finset α}
 and some antichain cover have the same size. Together with `chain_le_antichain_cover` this
 expresses that the longest chain and the smallest antichain cover have a common size. -/
 theorem mirsky [PartialOrder α] [DecidableEq α] (s : Finset α) :
-    ∃ (t : Finset α) (C : Finset (Finset α)),
-      t ⊆ s ∧ IsChain (· ≤ ·) (t : Set α) ∧
-      s = C.biUnion id ∧ (∀ c ∈ C, IsAntichain (· ≤ ·) (c : Set α)) ∧
-      C.card = t.card := by
+    ∃ (C : Finset α) (𝒜 : Finset (Finset α)),
+      C ⊆ s ∧ IsChain (· ≤ ·) (C : Set α) ∧
+      s = 𝒜.biUnion id ∧ (∀ A ∈ 𝒜, IsAntichain (· ≤ ·) (A : Set α)) ∧
+      𝒜.card = C.card := by
   classical
   induction s using Finset.strongInduction with
   | _ s ih =>
@@ -528,21 +534,21 @@ theorem mirsky [PartialOrder α] [DecidableEq α] (s : Finset α) :
       exact hab (le_antisymm hle (hb.2 a ha.1 hle))
     -- Recurse on `s \ M`.
     have hs'_ss : s \ M ⊂ s := Finset.sdiff_ssubset hM_sub hM_ne
-    obtain ⟨t', C', ht'sub, ht'chain, hs'cover, hC'anti, hC'card⟩ := ih (s \ M) hs'_ss
-    have hM_notin : M ∉ C' := by
-      intro hMC'
+    obtain ⟨C', 𝒜', hC'sub, hC'chain, hs'cover, hanti', hcard'⟩ := ih (s \ M) hs'_ss
+    have hM_notin : M ∉ 𝒜' := by
+      intro hmem
       obtain ⟨z, hz⟩ := hM_ne
-      have : z ∈ s \ M := by rw [hs'cover, Finset.mem_biUnion]; exact ⟨M, hMC', hz⟩
+      have : z ∈ s \ M := by rw [hs'cover, Finset.mem_biUnion]; exact ⟨M, hmem, hz⟩
       exact (Finset.mem_sdiff.mp this).2 hz
-    -- Build a chain of size `t'.card + 1` by extending `t'` downwards with a minimal element.
-    obtain ⟨t, ht_sub, ht_chain, ht_card⟩ :
-        ∃ t : Finset α, t ⊆ s ∧ IsChain (· ≤ ·) (t : Set α) ∧ t.card = t'.card + 1 := by
-      rcases t'.eq_empty_or_nonempty with rfl | ht'ne
+    -- Build a chain of size `C'.card + 1` by extending `C'` downwards with a minimal element.
+    obtain ⟨C, hC_sub, hC_chain, hC_card⟩ :
+        ∃ C : Finset α, C ⊆ s ∧ IsChain (· ≤ ·) (C : Set α) ∧ C.card = C'.card + 1 := by
+      rcases C'.eq_empty_or_nonempty with rfl | hC'ne
       · obtain ⟨m, hm⟩ := hM_ne
         exact ⟨{m}, by simpa using hM_sub hm,
           by rw [Finset.coe_singleton]; exact Set.subsingleton_singleton.isChain, by simp⟩
-      · obtain ⟨x₀, hx₀mem, hx₀least⟩ := exists_min_mem_of_isChain ht'chain ht'ne
-        have hx₀s' := ht'sub hx₀mem
+      · obtain ⟨x₀, hx₀mem, hx₀least⟩ := exists_min_mem_of_isChain hC'chain hC'ne
+        have hx₀s' := hC'sub hx₀mem
         have hx₀s : x₀ ∈ s := (Finset.mem_sdiff.mp hx₀s').1
         have hx₀notM : x₀ ∉ M := (Finset.mem_sdiff.mp hx₀s').2
         obtain ⟨m, hm_le, hm_mem⟩ :
@@ -555,23 +561,23 @@ theorem mirsky [PartialOrder α] [DecidableEq α] (s : Finset α) :
             hmin (Finset.mem_filter.mpr ⟨hys, le_trans hym hmx₀⟩) hym⟩
         have hmM : m ∈ M := (hM_mem m).mpr hm_mem
         have hm_ne_x₀ : m ≠ x₀ := fun h => hx₀notM (h ▸ hmM)
-        have hm_notin_t' : m ∉ t' := fun hmt' =>
-          hm_ne_x₀ (le_antisymm hm_le (hx₀least m hmt'))
-        refine ⟨insert m t', ?_, ?_, ?_⟩
+        have hm_notin_C' : m ∉ C' := fun hmC' =>
+          hm_ne_x₀ (le_antisymm hm_le (hx₀least m hmC'))
+        refine ⟨insert m C', ?_, ?_, ?_⟩
         · intro z hz
           rcases Finset.mem_insert.mp hz with rfl | hz
           · exact hm_mem.1
-          · exact (Finset.mem_sdiff.mp (ht'sub hz)).1
+          · exact (Finset.mem_sdiff.mp (hC'sub hz)).1
         · rw [Finset.coe_insert]
-          refine ht'chain.insert (fun b hb _ => Or.inl ?_)
+          refine hC'chain.insert (fun b hb _ => Or.inl ?_)
           rw [Finset.mem_coe] at hb
           exact le_trans hm_le (hx₀least b hb)
-        · rw [Finset.card_insert_of_notMem hm_notin_t']
-    refine ⟨t, insert M C', ht_sub, ht_chain, ?_, ?_, ?_⟩
+        · rw [Finset.card_insert_of_notMem hm_notin_C']
+    refine ⟨C, insert M 𝒜', hC_sub, hC_chain, ?_, ?_, ?_⟩
     · rw [Finset.biUnion_insert, ← hs'cover, id_eq]
       exact (Finset.union_sdiff_of_subset hM_sub).symm
-    · intro c hc
-      rcases Finset.mem_insert.mp hc with rfl | hc
+    · intro A hA
+      rcases Finset.mem_insert.mp hA with rfl | hA
       · exact hM_anti
-      · exact hC'anti c hc
-    · rw [Finset.card_insert_of_notMem hM_notin, hC'card, ht_card]
+      · exact hanti' A hA
+    · rw [Finset.card_insert_of_notMem hM_notin, hcard', hC_card]
