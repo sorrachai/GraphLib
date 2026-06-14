@@ -84,16 +84,13 @@ def IsMatching (M : Set (Sym2 α)) (G : SimpleGraph α) : Prop :=
 def IsSaturated (M : Set (Sym2 α)) (v : α) : Prop :=
   ∃ e ∈ M, v ∈ e
 
-/-- A vertex `v` is *unsaturated* by `M` if no edge of `M` is incident to it. -/
-def IsUnsaturated (M : Set (Sym2 α)) (v : α) : Prop := ¬ IsSaturated M v
-
 /-- A *perfect matching* of `G` saturates every vertex of `G`. -/
 def IsPerfectMatching (M : Set (Sym2 α)) (G : SimpleGraph α) : Prop :=
   IsMatching M G ∧ ∀ v ∈ V(G), IsSaturated M v
 
 /-- A *near-perfect matching* of `G` leaves exactly one vertex unsaturated. -/
 def IsNearPerfectMatching (M : Set (Sym2 α)) (G : SimpleGraph α) : Prop :=
-  IsMatching M G ∧ ∃! v, v ∈ V(G) ∧ IsUnsaturated M v
+  IsMatching M G ∧ ∃! v, v ∈ V(G) ∧ ¬IsSaturated M v
 
 /-- The empty edge set is a matching. -/
 lemma isMatching_empty (G : SimpleGraph α) : IsMatching (∅ : Set (Sym2 α)) G := by
@@ -108,6 +105,8 @@ def IsMaximumMatching (M : Set (Sym2 α)) (G : SimpleGraph α) : Prop :=
 /-- `M` is a *maximal matching* if it cannot be extended by adding an edge. -/
 def IsMaximalMatching (M : Set (Sym2 α)) (G : SimpleGraph α) : Prop :=
   IsMatching M G ∧ ∀ e ∈ E(G), e ∉ M → ¬ IsMatching (insert e M) G
+
+def IsPerfectMatching bla bla
 
 /-! ## Edges of a walk -/
 

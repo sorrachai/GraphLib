@@ -269,6 +269,103 @@ theorem SimpleDiGraph.card_edgeFinset_le_two_card_choose_two
     _ = 2 * (Fintype.card G.vertexSet).choose 2 := h2c.symm
     _ = 2 * G.vertexFinset.card.choose 2 := by rw [G.vertexFinset_card_eq]
 
+/-! ## Computable variants
+
+`vertexFinset` and `edgeFinset` are `noncomputable` because `Finite` is a
+`Prop`; producing a `Finset` from a `Finite` hypothesis goes through
+`Classical.choice`. For users who want to actually `#eval` an edge list,
+this section provides parallel definitions `computeVertexFinset` and
+`computeEdgeFinset` that demand stronger typeclasses (data, not Prop) but
+are fully constructive, together with equality lemmas tying them back to
+their noncomputable counterparts. -/
+
+/-- Computable variant of `vertexFinset`. -/
+def SimpleGraph.computeVertexFinset (G : SimpleGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] : Finset α :=
+  G.vertexSet.toFinset
+
+/-- Computable variant of `vertexFinset`. -/
+def SimpleDiGraph.computeVertexFinset (G : SimpleDiGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] : Finset α :=
+  G.vertexSet.toFinset
+
+@[simp] lemma SimpleGraph.mem_computeVertexFinset (G : SimpleGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] {v : α} :
+    v ∈ G.computeVertexFinset ↔ v ∈ G.vertexSet := by
+  simp [computeVertexFinset]
+
+@[simp] lemma SimpleDiGraph.mem_computeVertexFinset (G : SimpleDiGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] {v : α} :
+    v ∈ G.computeVertexFinset ↔ v ∈ G.vertexSet := by
+  simp [computeVertexFinset]
+
+/-- The computable and noncomputable vertex finsets agree. -/
+lemma SimpleGraph.computeVertexFinset_eq_vertexFinset (G : SimpleGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] :
+    G.computeVertexFinset = G.vertexFinset := by
+  ext v; simp
+
+/-- The computable and noncomputable vertex finsets agree. -/
+lemma SimpleDiGraph.computeVertexFinset_eq_vertexFinset (G : SimpleDiGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] :
+    G.computeVertexFinset = G.vertexFinset := by
+  ext v; simp
+
+/-- Computable variant of `edgeFinset`. Iterates over all unordered pairs
+of vertices and keeps those that lie in `E(G)`. -/
+def SimpleGraph.computeEdgeFinset (G : SimpleGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] [DecidablePred (· ∈ G.edgeSet)] :
+    Finset (Sym2 α) :=
+  (((Finset.univ : Finset G.vertexSet).sym2).image (Sym2.map Subtype.val)).filter
+    (· ∈ G.edgeSet)
+
+/-- Computable variant of `edgeFinset`. Iterates over all ordered pairs of
+vertices and keeps those that lie in `E(G)`. -/
+def SimpleDiGraph.computeEdgeFinset (G : SimpleDiGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] [DecidablePred (· ∈ G.edgeSet)] :
+    Finset (α × α) :=
+  (((Finset.univ : Finset G.vertexSet) ×ˢ
+      (Finset.univ : Finset G.vertexSet)).image
+    (fun p => (p.1.val, p.2.val))).filter (· ∈ G.edgeSet)
+
+@[simp] lemma SimpleGraph.mem_computeEdgeFinset (G : SimpleGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] [DecidablePred (· ∈ G.edgeSet)]
+    {e : Sym2 α} : e ∈ G.computeEdgeFinset ↔ e ∈ G.edgeSet := by
+  classical
+  simp only [computeEdgeFinset, Finset.mem_filter, Finset.mem_image,
+    Finset.mem_sym2_iff, Finset.mem_univ, true_and]
+  refine ⟨fun h => h.2, fun he => ⟨?_, he⟩⟩
+  induction e with
+  | h x y =>
+    refine ⟨s(⟨x, G.incidence' _ he x (by simp)⟩,
+              ⟨y, G.incidence' _ he y (by simp)⟩),
+            ?_, by simp [Sym2.map_pair_eq]⟩
+    intro a ha
+    simp only [Sym2.mem_iff] at ha
+    rcases ha with rfl | rfl <;> simp
+
+@[simp] lemma SimpleDiGraph.mem_computeEdgeFinset (G : SimpleDiGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] [DecidablePred (· ∈ G.edgeSet)]
+    {e : α × α} : e ∈ G.computeEdgeFinset ↔ e ∈ G.edgeSet := by
+  classical
+  simp only [computeEdgeFinset, Finset.mem_filter, Finset.mem_image,
+    Finset.mem_product, Finset.mem_univ, true_and, and_true]
+  refine ⟨fun h => h.2, fun he => ⟨?_, he⟩⟩
+  refine ⟨(⟨e.1, (G.incidence' _ he).1⟩, ⟨e.2, (G.incidence' _ he).2⟩), ?_⟩
+  rfl
+
+/-- The computable and noncomputable edge finsets agree. -/
+lemma SimpleGraph.computeEdgeFinset_eq_edgeFinset (G : SimpleGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] [DecidablePred (· ∈ G.edgeSet)] :
+    G.computeEdgeFinset = G.edgeFinset := by
+  ext e; simp
+
+/-- The computable and noncomputable edge finsets agree. -/
+lemma SimpleDiGraph.computeEdgeFinset_eq_edgeFinset (G : SimpleDiGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] [DecidablePred (· ∈ G.edgeSet)] :
+    G.computeEdgeFinset = G.edgeFinset := by
+  ext e; simp
+
 /-! ## Convenience: `[Finite V(G)]` is enough
 
 In normal use a downstream lemma should only need to write

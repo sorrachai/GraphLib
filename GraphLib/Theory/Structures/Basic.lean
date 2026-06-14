@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Basil Rohner, Sorrachai Yingchareonthawornchai, Weixuan Yuan
 -/
 import Mathlib.Data.Sym.Sym2
+import GraphLib.Graph.Basic
 
 /-!
 # Walks
@@ -54,13 +55,136 @@ by adding an adjacency hypothesis on top of `Walk`.
 
 set_option tactic.hygienic false
 
-variable {α : Type*}
+namespace Snoc
 
-/-- A non-empty sequence of vertices in `α`, used as the underlying data of a
-walk. `cons w u` extends `w` on the right by the vertex `u`. -/
-@[grind] inductive VertexSeq (α : Type*)
-  | singleton (v : α) : VertexSeq α
-  | cons (w : VertexSeq α) (v : α) : VertexSeq α
+class Snoc (γ δ : Type*) where
+  snoc : γ → δ → γ
+
+scoped infixl:67 " :+ " => Snoc.snoc
+
+end Snoc
+
+variable {α ε : Type*} [DecidableEq α]
+
+abbrev EdgeSeq : List ε
+
+-- alternatively
+
+def complete (n : ℕ) : Graph n := sorry
+
+inductive Walk (α ε : Type*) where
+  | .nil (u : α) : Walk u u
+  | .cons (u v : α) (e : ε)  : Walk
+
+inductive SimpleWalk (α ε : Type*) where
+  | .nil α : SimpleWalk α
+  | .cons α : SimpleWalk α
+
+-- alternatively
+
+structure Walk (α ε : Type*) where
+  vertices : List α
+  edges : List ε
+  nonempty : vertices ≠ []
+  length_eq : vertices.length = edges.length + 1
+
+structure SimpleWalk (α : Type*) where
+  vertices : List α
+  nonempty : vertices ≠ []
+
+structure ClosedWalk (α ε : Type*) extends Walk α ε where
+  cyclic : fst vertices = lst vertices
+
+structure SimpleClosedWalk (α : Type*) extends SimpleWalk α where
+  cyclic : fst vertices = lst vertices
+
+structure Path (α ε : Type*) extends SimpleWalk α where
+  unique : distinct vertices
+
+structure SimplePath (α ε : Type*) extends SimpleWalk α where
+  unique : distinct vertices
+
+structure Cycle (α ε : Type*) extends ClosedWalk α ε where
+  unique : internally distinct vertices
+
+structure SimpleCycle (α : Type*) extends SimpleClosedWalk α where
+  unique : internally distinct vertices
+
+structure Trail (α ε : Type*) extends Walk α ε where
+  edgesUnique : unique edges
+
+structure SimpleTrail (α ε : Type*) extends SimpleWalk α where
+  edgesUnique : sorry
+
+/-- Forget the edges of a walk, viewing it as its list of vertices. Registered
+as a coercion, so a `Walk α ε` can be used wherever a `List α` is expected. -/
+instance {α ε : Type*} : CoeHead (Walk α ε) (List α) := ⟨Walk.vertices⟩
+
+instance {α : Type*} : CoeHead (SimpleWalk α) (List α) := ⟨SimpleWalk.vertices⟩
+
+def Walk.toGraph {ε : Type*} (w : Walk α ε) : Graph α ε :=
+  {
+    w.vertices.toFinset,
+    sorry
+  }
+
+def Walk.toDiGraph {ε : Type*} (w : Walk α ε) : DiGraph α ε :=
+  {
+    w.vertices.toFinset,
+    sorry
+  }
+
+def Walk.toSimpleWalk {ε : Type*} (w : Walk α ε) : SimpleWalk α :=
+  {
+    w.vertices.toFinset,
+    w.nonempty
+  }
+
+instance : Coe (Walk α ε) (SimpleWalk α) := ⟨Walk.toSimpleWalk⟩
+
+def SimpleWalk.toSimpleGraph (w : SimpleWalk α) : SimpleGraph α :=
+  {
+    w.vertices.toFinset,
+    sorry
+  }
+
+def SimpleWalk.toSimpleDiGraph (w : SimpleWalk α) : SimpleDiGraph α :=
+  {
+    w.vertices.toFinset,
+    sorry
+  }
+
+instance : Coe (w : SimpleWalk α) (List α) := ⟨w.vertices⟩
+
+-- Different types
+
+def Walk.head (w : Walk α ε) : α := w.vertices.tail
+
+def Walk.tail (w : Walk α ε) : α := w.vertices.head
+
+def SimpleWalk.head (w : SimpleWalk α) : α := w.vertices.tail
+
+def SimpleWalk.tail (w : SimpleWalk α) : α := w.vertices.head
+
+def SimpleWalk.disjoint (v w : SimpleWalk α) : Prop :=
+  sorry
+
+def SimpleWalk.internallyDisjoint (v w : SimpleWalk α) : Prop :=
+  sorry
+
+def Path := { w : Walk α ε // w.vertices.Nodup }
+
+def SimplePath := { w : SimpleWalk α // w.vertices.Nodup }
+
+def ClosedWalk := { w : Walk α ε // w.head = w.tail }
+
+def SimpleClosedWalk := { w : SimpleWalk α // w.head = w.tail  }
+
+
+
+/-!
+  BELOW WE HAVE WHAT WE HAD BEFORE
+-/
 
 namespace VertexSeq
 

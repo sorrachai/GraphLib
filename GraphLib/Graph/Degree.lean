@@ -63,26 +63,50 @@ neighbour. -/
 def Graph.neighborSet (G : Graph α β) (v : α) : Set α :=
   {u | u ≠ v ∧ ∃ e ∈ G.edgeSet, u ∈ e.endpoints ∧ v ∈ e.endpoints}
 
+def Graph.neighborFinset (G : Graph α β) [Finite V(G)] (v : α) : Finset α :=
+  sorry
+
 /-- The neighbours of `v` in the simple graph `G`. -/
 def SimpleGraph.neighborSet (G : SimpleGraph α) (v : α) : Set α :=
   {u | s(u, v) ∈ G.edgeSet}
+
+def SimpleGraph.neighborFinset (G : SimpleGraph α) (v : α) : Finset α :=
+  sorry
 
 /-- The out-neighbours of `v` in the directed multigraph `G`: vertices
 `u ≠ v` such that some edge of `G` points from `v` to `u`. -/
 def DiGraph.outNeighborSet (G : DiGraph α β) (v : α) : Set α :=
   {u | u ≠ v ∧ ∃ e ∈ G.edgeSet, e.endpoints = (v, u)}
 
+def DiGraph.outNeighborFinset (G : DiGraph α β) (v : α) : Finset α :=
+  sorry
+
 /-- The in-neighbours of `v` in the directed multigraph `G`. -/
 def DiGraph.inNeighborSet (G : DiGraph α β) (v : α) : Set α :=
   {u | u ≠ v ∧ ∃ e ∈ G.edgeSet, e.endpoints = (u, v)}
+
+def DiGraph.inNeighborFinset (G : DiGraph α β) (v : α) : Finset α :=
+  sorry
 
 /-- The out-neighbours of `v` in the simple directed graph `G`. -/
 def SimpleDiGraph.outNeighborSet (G : SimpleDiGraph α) (v : α) : Set α :=
   {u | (v, u) ∈ G.edgeSet}
 
+/-- The out-neighbours of `v` in the simple directed graph `G`. -/
+def SimpleDiGraph.outNeighborFinset (G : SimpleDiGraph α) (v : α) : Finset α :=
+  sorry
+
 /-- The in-neighbours of `v` in the simple directed graph `G`. -/
 def SimpleDiGraph.inNeighborSet (G : SimpleDiGraph α) (v : α) : Set α :=
   {u | (u, v) ∈ G.edgeSet}
+
+/-- The in-neighbours of `v` in the simple directed graph `G`. -/
+def SimpleDiGraph.inNeighborFinset (G : SimpleDiGraph α) (v : α) : Finset α :=
+  sorry
+
+notation N(G, v)
+notation N+(G,v)
+notation N-(G,v)
 
 /-! ## Incidence sets -/
 
@@ -90,24 +114,42 @@ def SimpleDiGraph.inNeighborSet (G : SimpleDiGraph α) (v : α) : Set α :=
 def Graph.incidenceSet (G : Graph α β) (v : α) : Set (Edge α β) :=
   {e ∈ G.edgeSet | v ∈ e.endpoints}
 
+def Graph.incidenceFinset (G : Graph α β) (v : α) : Set (Edge α β) :=
+  {e ∈ G.edgeSet | v ∈ e.endpoints}
+
 /-- The set of edges of `G` incident to `v`. -/
 def SimpleGraph.incidenceSet (G : SimpleGraph α) (v : α) : Set (Sym2 α) :=
+  {e ∈ G.edgeSet | v ∈ e}
+
+def SimpleGraph.incidenceFinset (G : SimpleGraph α) (v : α) : Set (Sym2 α) :=
   {e ∈ G.edgeSet | v ∈ e}
 
 /-- The set of directed edges of `G` with source `v`. -/
 def DiGraph.outIncidenceSet (G : DiGraph α β) (v : α) : Set (Arc α β) :=
   {e ∈ G.edgeSet | e.endpoints.1 = v}
 
+def DiGraph.outIncidenceFinset (G : DiGraph α β) (v : α) : Set (Arc α β) :=
+  {e ∈ G.edgeSet | e.endpoints.1 = v}
+
 /-- The set of directed edges of `G` with target `v`. -/
 def DiGraph.inIncidenceSet (G : DiGraph α β) (v : α) : Set (Arc α β) :=
+  {e ∈ G.edgeSet | e.endpoints.2 = v}
+
+def DiGraph.inIncidenceFinset (G : DiGraph α β) (v : α) : Set (Arc α β) :=
   {e ∈ G.edgeSet | e.endpoints.2 = v}
 
 /-- The set of directed edges of `G` with source `v`. -/
 def SimpleDiGraph.outIncidenceSet (G : SimpleDiGraph α) (v : α) : Set (α × α) :=
   {e ∈ G.edgeSet | e.1 = v}
 
+def SimpleDiGraph.outIncidenceFinset (G : SimpleDiGraph α) (v : α) : Set (α × α) :=
+  {e ∈ G.edgeSet | e.1 = v}
+
 /-- The set of directed edges of `G` with target `v`. -/
 def SimpleDiGraph.inIncidenceSet (G : SimpleDiGraph α) (v : α) : Set (α × α) :=
+  {e ∈ G.edgeSet | e.2 = v}
+
+def SimpleDiGraph.inIncidenceFinset (G : SimpleDiGraph α) (v : α) : Set (α × α) :=
   {e ∈ G.edgeSet | e.2 = v}
 
 /-! ## Degrees -/
@@ -136,6 +178,10 @@ def SimpleDiGraph.outDegree (G : SimpleDiGraph α) (v : α) : ℕ :=
 /-- The in-degree of `v` in the simple directed graph `G`. -/
 def SimpleDiGraph.inDegree (G : SimpleDiGraph α) (v : α) : ℕ :=
   (G.inNeighborSet v).ncard
+
+notation d(G,v)
+notation d+(G,v)
+notation d-(G,v)
 
 end Degrees
 
@@ -190,5 +236,21 @@ noncomputable def SimpleDiGraph.maxInDegree (G : SimpleDiGraph α) : ℕ∞ :=
 /-- The minimum in-degree of the simple directed graph `G`. -/
 noncomputable def SimpleDiGraph.minInDegree (G : SimpleDiGraph α) : ℕ∞ :=
   ⨅ v ∈ V(G), (G.inDegree v : ℕ∞)
+
+def SimpleGraph.avgDegree (G : SimpleGraph α) : ℕ :=
+  sorry
+
+def SimpleGraph.adj (G : SimpleGraph α) (v w : α) : Prop :=
+  sorry
+
+def SimpleGraph.inc (G : SimpleGraph α) (e : E(G)) (v : )
+
+notation δ(G)
+notation δ+(G)
+notation δ-(G)
+notation Δ(G)
+notation Δ+(G)
+notation Δ-(G)
+notation v ∼G w
 
 end GraphLib
