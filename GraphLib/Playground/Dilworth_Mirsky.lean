@@ -14,94 +14,51 @@ import Mathlib.Data.Finset.SDiff
 import Mathlib.Data.Finset.Union
 
 /-!
-# Dilworth's and Mirsky's Theorems
+# Dilworth's and Mirsky's theorems
 
-This file proves Dilworth's theorem and its dual, Mirsky's theorem, for finite subsets of a
-partially ordered set, together with the general order-theoretic lemmas the proofs rest on.
+Dilworth's theorem and its order dual, Mirsky's theorem, for finite subsets of a partial order,
+together with the order-theoretic lemmas they rest on.
 
 ## Main declarations
 
-General:
-
-* `IsAntichain.upperClosure_inter_lowerClosure`: an antichain is exactly the intersection of its
-  upper and lower closures.
+* `IsAntichain.upperClosure_inter_lowerClosure`: an antichain is the intersection of its upper and
+  lower closures.
 * `IsMaxAntichain.upperClosure_union_lowerClosure`: the upper and lower closures of a maximal
-  antichain cover the whole order.
-* `exists_injOn_mem_of_inter_subsingleton`: the choice core shared by both weak dualities. Given a
-  cover `C` of `A` such that `A` meets each member of `C` in at most one point, there is an
-  injection-on-`A` selecting for each `a ∈ A` a member of `C` containing it.
-* `IsAntichain.exists_injOn_mem_chains` / `IsChain.exists_injOn_mem_antichains`: weak duality in
-  injection form. An antichain injects into any chain cover of it, and dually.
-
-Finite (cardinality) statements:
-
-* `antichain_le_chain_cover` / `chain_le_antichain_cover`: weak duality for `Finset` cardinalities.
-* `IsAntichain.exists_bijOn_chains_le` / `IsAntichain.exists_bijOn_chains_ge`: the one-sided
-  covering lemma. If at most `|A|` chains cover a set lying below (resp. above) the antichain `A`,
-  the weak-duality injection is a bijection and each `a ∈ A` is the greatest (resp. least) element
-  of its chain.
-* `dilworth`: **Dilworth's theorem**, strong duality: some antichain and some chain cover have
-  equal size. With `antichain_le_chain_cover` this is the min-max equality.
-* `mirsky`: **Mirsky's theorem**, the order dual, for antichain covers and chains.
+  antichain cover the order.
+* `exists_injOn_mem_of_inter_subsingleton`: if a family covers `A` and each member meets `A` in at
+  most one point, a member containing `a` can be chosen for each `a ∈ A`, injectively in `a`.
+* `IsAntichain.exists_injOn_mem_chains`, `IsChain.exists_injOn_mem_antichains`: weak duality in
+  injective form, for an arbitrary relation; an antichain injects into any cover of it by chains,
+  and dually.
+* `antichain_le_chain_cover`, `chain_le_antichain_cover`: weak duality for `Finset` cardinalities.
+* `IsAntichain.exists_bijOn_chains_le`, `IsAntichain.exists_bijOn_chains_ge`: if at most `A.card`
+  chains cover a set whose elements all lie below (resp. above) the antichain `A`, the weak-duality
+  injection is a bijection and each `a ∈ A` is the greatest (resp. least) element of its chain.
+* `dilworth`, `mirsky`: strong duality — an antichain and a chain cover (resp. a chain and an
+  antichain cover) of equal size.
+* `dilworth_partition`, `mirsky_partition`: as above, with the cover refined to a pairwise-disjoint
+  partition of equal size.
 
 ## Implementation notes
 
-The min-max content is split, as for Hall's marriage theorem, into a weak-duality inequality and a
-strong-duality existence statement; the pair `(t, C)` produced by `dilworth` is automatically a
-maximum antichain and a minimum chain cover by weak duality, so no extremal quantities
-(`Finset.min'`/`Finset.max'` over families of sets) are ever defined.
+As for Hall's marriage theorem, the min-max content is split into a weak-duality inequality and a
+strong-duality existence statement. The pair returned by `dilworth` is a maximum antichain and a
+minimum chain cover by weak duality, so no extremal quantity over families of sets
+(`Finset.min'`/`Finset.max'`) is defined.
 
-Three structural choices keep the proofs short:
+Covers are `Finset (Finset α)`, whereas the intermediate lemmas use a function `f : α → Finset α`
+injective on the antichain with `a ∈ f a`; distinctness of the chains then follows from the
+antichain property. The induction is `Finset.strongInduction` along `⊂` in a single ambient
+`[PartialOrder α]`, so sub-posets are finsets, not subtypes, and no coercions arise.
 
-* Covers are `Finset (Finset α)` in the theorem statements (the classical reading of "number of
-  chains"), but all intermediate lemmas speak about *functions* `f : α → Finset α` that are
-  injective/bijective on the antichain with `a ∈ f a` — distinctness of the produced chains is then
-  a consequence of the antichain property rather than a side condition to bookkeep.
-* Everything happens inside one ambient `[PartialOrder α]`; sub-posets are plain `Finset`s and
-  never subtypes, so the induction (`Finset.strongInduction` along `⊂`) needs no coercions.
-* The proof of `dilworth` is the classical induction: pick a maximum-cardinality antichain `A`;
-  if some maximum antichain has both strict lower and strict upper closure inside `s`, recurse on
-  the two closures and glue the resulting chain covers through `A` using the one-sided covering
-  lemma; otherwise remove the two-element chain `{x, y}` (a maximal element over a minimal one),
-  which strictly decreases the maximum antichain size, and recurse.
+`dilworth` follows Galvin's induction: take a maximum-cardinality antichain `A`; if some maximum
+antichain has both closures proper in `s`, recurse on the two closures and glue the chain covers
+through `A` (`chainCover_glue`); otherwise delete a two-element chain `{x, y}` with `x` maximal and
+`y ≤ x` minimal, which lowers the width, and recurse.
 
 ## Tags
 
 poset, dilworth, mirsky, chain, antichain, upper closure, lower closure
-
-Hi everyone,
-
-This file formalizes Dilworth's and Mirsky's theorems. For Dilworth I use Galvin's induction (via
-the one-sided covering lemma `chainCover_glue`), which keeps the argument self-contained and avoids
-the boilerplate of routing through bipartite matching / Kőnig's theorem.
-
-A few structural choices I want to flag up front. I am happy to revisit any of them if there is a
-more idiomatic approach, but here is my current reasoning:
-
-1. **Mirsky is not proved as the formal dual of Dilworth.** One could ask for the two proofs to
-share a single mechanism or to be derived from each other via `OrderDual`. I deliberately did not
-do this: the theorems are dual in *statement* but not in *difficulty*. Dilworth needs the Galvin
-bottleneck, whereas Mirsky has a genuinely simpler proof (peel off the minimal elements, one
-antichain per layer). Forcing Mirsky through Dilworth's machinery would make it longer, not shorter.
-The two proofs already share their foundations (the closure lemmas and weak duality in injection
-form), so what differs is only the induction, and I think keeping each proof on its natural
-induction is the right call. Happy to be convinced otherwise.
-
-2. **`[DecidableEq α]` on the main theorems.** This is forced by the statement, not just for
-convenience: the cover condition `s = C.biUnion id` needs `DecidableEq α` for `Finset.biUnion`. It
-can be avoided by stating coverage membership-wise instead, but that reads less cleanly. I kept the
-`biUnion` form since `[DecidableEq α]` is standard for `Finset` results; I'm happy to switch to the
-membership form if reviewers prefer a typeclass-free public API.
-
-3. **Extremal extraction & covers.** I grab the maximum antichain with
-`exists_max_image Finset.card` (with the empty antichain as the nonempty witness). Covers are
-`Finset (Finset α)` in the public statements (the classical reading of "number of chains"), but the
-intermediate lemmas work with functions `α → Finset α` that are injective/bijective on the
-antichain (`Set.InjOn` / `Set.BijOn`), so distinctness of the produced chains falls out of the
-property instead of being tracked by hand. If there is a more idiomatic pattern for this in the
-current `Finset` API, I'm all ears.
-
-Looking forward to your feedback!
 -/
 
 open Finset
@@ -148,9 +105,8 @@ sets: no order axioms and no finiteness enter. The shared core is that a family 
 `A` in at most one point admits an injective choice of index on `A`. The cardinality bounds further
 down are the specialization to `ι := Finset α`, `c := (↑·)`. -/
 
-/-- **Injective transversal.** If the blocks `c i` for `i ∈ C` cover `A` and each meets `A` in at
-most one point, then for each `a ∈ A` one can choose an index `f a ∈ C` with `a ∈ c (f a)`,
-injectively in `a`. -/
+/-- If the sets `c i`, `i ∈ C`, cover `A` and each meets `A` in at most one point, then for each
+`a ∈ A` one may choose an index `f a ∈ C` with `a ∈ c (f a)`, and the choice is injective on `A`. -/
 lemma exists_injOn_mem_of_inter_subsingleton {ι : Type*} [Nonempty ι] {A : Set α}
     {c : ι → Set α} {C : Set ι} (hcover : ∀ a ∈ A, ∃ i ∈ C, a ∈ c i)
     (hinter : ∀ i ∈ C, (A ∩ c i).Subsingleton) :
@@ -159,8 +115,8 @@ lemma exists_injOn_mem_of_inter_subsingleton {ι : Type*} [Nonempty ι] {A : Set
   exact ⟨f, fun a ha => hfC a ha,
     fun a ha b hb hfab => hinter (f a) (hfC a ha) ⟨ha, hfmem a ha⟩ ⟨hb, hfab ▸ hfmem b hb⟩, hfmem⟩
 
-/-- **Weak duality for chains, injective form:** an antichain `A` injects into any cover of it by
-chains, each `a ∈ A` landing in a chain containing it. -/
+/-- An antichain injects into any cover of it by chains, each element landing in a chain that
+contains it (the injective form of weak duality for Dilworth's theorem). -/
 theorem IsAntichain.exists_injOn_mem_chains {r : α → α → Prop} {ι : Type*} [Nonempty ι] {A : Set α}
     {c : ι → Set α} {C : Set ι} (hA : IsAntichain r A) (hcover : ∀ a ∈ A, ∃ i ∈ C, a ∈ c i)
     (hchains : ∀ i ∈ C, IsChain r (c i)) :
@@ -169,8 +125,8 @@ theorem IsAntichain.exists_injOn_mem_chains {r : α → α → Prop} {ι : Type*
     subsingleton_of_isChain_of_isAntichain
       (IsChain.mono Set.inter_subset_right (hchains i hi)) (hA.subset Set.inter_subset_left)
 
-/-- **Weak duality for antichains, injective form:** a chain `A` injects into any cover of it by
-antichains, each `a ∈ A` landing in an antichain containing it. -/
+/-- A chain injects into any cover of it by antichains, each element landing in an antichain that
+contains it (the injective form of weak duality for Mirsky's theorem). -/
 theorem IsChain.exists_injOn_mem_antichains {r : α → α → Prop} {ι : Type*} [Nonempty ι] {A : Set α}
     {c : ι → Set α} {C : Set ι} (hA : IsChain r A) (hcover : ∀ a ∈ A, ∃ i ∈ C, a ∈ c i)
     (hantis : ∀ i ∈ C, IsAntichain r (c i)) :
@@ -185,8 +141,8 @@ The classical `Finset` statements, obtained by specializing the injective form t
 `(↑· : Finset α → Set α)`: an injection of one side into the cover is exactly the `card ≤ card`
 bound. -/
 
-/-- **Weak duality (Dilworth):** the size of any antichain `A` in `s` is bounded by the size of any
-chain cover `𝒞` of `s`. Stated for an arbitrary relation `r`; no order axioms are needed. -/
+/-- The size of an antichain in `s` is at most the number of chains in any chain cover of `s`.
+Stated for an arbitrary relation `r`; no order axioms are needed. -/
 lemma antichain_le_chain_cover {r : α → α → Prop} [DecidableEq α] {s A : Finset α}
     {𝒞 : Finset (Finset α)} (hA_sub : A ⊆ s) (hA : IsAntichain r (A : Set α))
     (hcov : s ⊆ 𝒞.biUnion id) (hchains : ∀ C ∈ 𝒞, IsChain r (C : Set α)) :
@@ -199,8 +155,8 @@ lemma antichain_le_chain_cover {r : α → α → Prop} [DecidableEq α] {s A : 
     fun C hC => hchains C (Finset.mem_coe.mp hC)
   exact Finset.card_le_card_of_injOn f hmaps hinj
 
-/-- **Weak duality (Mirsky):** the size of any chain `C` in `s` is bounded by the size of any
-antichain cover `𝒜` of `s`. Stated for an arbitrary relation `r`; no order axioms are needed. -/
+/-- The size of a chain in `s` is at most the number of antichains in any antichain cover of `s`.
+Stated for an arbitrary relation `r`; no order axioms are needed. -/
 lemma chain_le_antichain_cover {r : α → α → Prop} [DecidableEq α] {s C : Finset α}
     {𝒜 : Finset (Finset α)} (hC_sub : C ⊆ s) (hC : IsChain r (C : Set α))
     (hcov : s ⊆ 𝒜.biUnion id) (hantis : ∀ A ∈ 𝒜, IsAntichain r (A : Set α)) :
@@ -216,8 +172,8 @@ lemma chain_le_antichain_cover {r : α → α → Prop} [DecidableEq α] {s C : 
 /-! ### The one-sided covering lemma -/
 
 /-- The weak-duality injection of an antichain into a chain cover of equal size is a bijection: each
-chain meets `A` in at most one point (so the choice is injective) and `C.card ≤ A.card` upgrades it
-to a surjection. The extremality of each `a` in its chain is added in the two corollaries below. -/
+chain meets `A` in at most one point, making the choice injective, and `𝒞.card ≤ A.card` makes it
+surjective. The extremality of each `a` in its chain is added in the two corollaries below. -/
 theorem IsAntichain.exists_bijOn_chains [PartialOrder α] {A : Finset α} {𝒞 : Finset (Finset α)}
     (hA : IsAntichain (· ≤ ·) (A : Set α)) (hcover : ∀ a ∈ A, ∃ C ∈ 𝒞, a ∈ C)
     (hchains : ∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α)) (hcard : 𝒞.card ≤ A.card) :
@@ -236,9 +192,8 @@ theorem IsAntichain.exists_bijOn_chains [PartialOrder α] {A : Finset α} {𝒞 
     · exact hne (hA.eq' (Finset.mem_coe.mpr ha) (Finset.mem_coe.mpr hb) h)
   exact ⟨f, ⟨hmaps, hinj, Finset.surjOn_of_injOn_of_card_le f hmaps hinj hcard⟩, hfmem⟩
 
-/-- **One-sided covering, lower version:** if at most `|A|` chains cover a set of elements each
-lying below the antichain `A`, then the chains biject with `A`, each `a ∈ A` being the greatest
-element of its chain. -/
+/-- If at most `A.card` chains cover a set whose elements all lie below the antichain `A`, then the
+chains biject with `A`, with each `a ∈ A` the greatest element of its chain. -/
 theorem IsAntichain.exists_bijOn_chains_le [PartialOrder α] {A : Finset α} {𝒞 : Finset (Finset α)}
     (hA : IsAntichain (· ≤ ·) (A : Set α)) (hcover : ∀ a ∈ A, ∃ C ∈ 𝒞, a ∈ C)
     (hchains : ∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α))
@@ -255,9 +210,8 @@ theorem IsAntichain.exists_bijOn_chains_le [PartialOrder α] {A : Finset α} {�
   · obtain ⟨a', ha', hxa'⟩ := hbelow (f a) hfa𝒞 x hx
     rwa [← hA.eq (Finset.mem_coe.mpr ha) (Finset.mem_coe.mpr ha') (h.trans hxa')] at hxa'
 
-/-- **One-sided covering, upper version:** if at most `|A|` chains cover a set of elements each
-lying above the antichain `A`, then the chains biject with `A`, each `a ∈ A` being the least element
-of its chain. -/
+/-- If at most `A.card` chains cover a set whose elements all lie above the antichain `A`, then the
+chains biject with `A`, with each `a ∈ A` the least element of its chain. -/
 theorem IsAntichain.exists_bijOn_chains_ge [PartialOrder α] {A : Finset α} {𝒞 : Finset (Finset α)}
     (hA : IsAntichain (· ≤ ·) (A : Set α)) (hcover : ∀ a ∈ A, ∃ C ∈ 𝒞, a ∈ C)
     (hchains : ∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α))
@@ -278,12 +232,11 @@ theorem IsAntichain.exists_bijOn_chains_ge [PartialOrder α] {A : Finset α} {�
 /-! ### Dilworth's theorem -/
 
 open Classical in
-/-- **Gluing step of Dilworth's induction.** Let `A` be an antichain contained in `s` and saturated
-in `s` (every element of `s` is comparable to some element of `A`). If the lower closure
-`{p ∈ s | ∃ a ∈ A, p ≤ a}` and the upper closure `{p ∈ s | ∃ a ∈ A, a ≤ p}` each admit a chain
-cover with exactly `|A|` chains, then so does `s`: each `a ∈ A` is the top of its chain in the lower
-cover and the bottom of its chain in the upper cover (one-sided covering), so the two chains glue
-along `a` into a single chain, and these glued chains cover `s`. -/
+/-- Gluing step of Dilworth's induction. Let `A` be an antichain saturated in `s` (every element of
+`s` is comparable to some element of `A`). If the lower closure `{p ∈ s | ∃ a ∈ A, p ≤ a}` and the
+upper closure `{p ∈ s | ∃ a ∈ A, a ≤ p}` each have a chain cover of exactly `A.card` chains, then so
+does `s`: each `a ∈ A` tops its chain in the lower cover and bottoms its chain in the upper cover,
+so the two glue along `a` into one chain. -/
 theorem chainCover_glue [PartialOrder α] [DecidableEq α] {s A : Finset α}
     {𝒞₁ 𝒞₂ : Finset (Finset α)} (hAsub : A ⊆ s) (hA : IsAntichain (· ≤ ·) (A : Set α))
     (hsat : ∀ p ∈ s, ∃ a ∈ A, p ≤ a ∨ a ≤ p)
@@ -359,9 +312,9 @@ theorem chainCover_glue [PartialOrder α] [DecidableEq α] {s A : Finset α}
   · obtain ⟨a, ha, rfl⟩ := Finset.mem_image.mp hC
     exact hKchain a ha
 
-/-- **Dilworth's theorem (strong duality):** in any finite subset `s` of a partial order, some
-antichain and some chain cover have the same size. Together with `antichain_le_chain_cover` this
-expresses that the largest antichain and the smallest chain cover have a common size. -/
+/-- Dilworth's theorem, strong duality: in any finite subset `s` of a partial order, some antichain
+and some chain cover have the same size. With `antichain_le_chain_cover`, this says the largest
+antichain and the smallest chain cover have a common size. -/
 theorem dilworth [PartialOrder α] [DecidableEq α] (s : Finset α) :
     ∃ (A : Finset α) (𝒞 : Finset (Finset α)),
       A ⊆ s ∧ IsAntichain (· ≤ ·) (A : Set α) ∧
@@ -444,12 +397,9 @@ theorem dilworth [PartialOrder α] [DecidableEq α] (s : Finset α) :
       rw [Set.mem_singleton_iff] at hb
       rw [hb]
       exact hyx
-    -- the width strictly drops after removing `{x, y}`
-    -- Note on the width drop: the width of `s \ p` is `< A.card` because `s \ p` contains no
-    -- antichain of size `A.card` (and any larger antichain would contain one of that size). Rather
-    -- than formalize that general subset property, we leverage `hAmax'` to bound the size from
-    -- above and split on equality. The global maximality of `A` is only strictly needed for Case 1;
-    -- here it merely shortens the argument (the size-`A.card` contradiction is the real content).
+    -- removing `{x, y}` lowers the width: an antichain of size `A.card` in `s \ p` would have its
+    -- lower closure miss the maximal `x` or its upper closure miss the minimal `y`, contradicting
+    -- `hcase`
     have hwidth : ∀ A' ⊆ s \ p, IsAntichain (· ≤ ·) (A' : Set α) → A'.card < A.card := by
       intro A' hA'sub hA'anti
       rcases lt_or_eq_of_le (hAmax' A' (hA'sub.trans (Finset.sdiff_subset)) hA'anti) with h | h
@@ -493,8 +443,8 @@ theorem dilworth [PartialOrder α] [DecidableEq α] (s : Finset α) :
 
 /-! ### Mirsky's theorem
 
-The proof below (peel off the minimal elements, one antichain per round) predates the manuscript
-this file follows and will be aligned with its dual treatment when that proof is supplied. -/
+Proved directly by peeling off the minimal elements one antichain at a time, rather than as a formal
+dual of `dilworth`: this induction is shorter than reusing the Galvin machinery. -/
 
 /-- A nonempty finite chain has a least element. -/
 theorem exists_min_mem_of_isChain [Preorder α] {C : Finset α}
@@ -507,9 +457,9 @@ theorem exists_min_mem_of_isChain [Preorder α] {C : Finset α}
     · exact h
     · exact hm.2 hy h
 
-/-- **Mirsky's theorem (strong duality):** in any finite subset `s` of a partial order, some chain
-and some antichain cover have the same size. Together with `chain_le_antichain_cover` this
-expresses that the longest chain and the smallest antichain cover have a common size. -/
+/-- Mirsky's theorem, strong duality: in any finite subset `s` of a partial order, some chain and
+some antichain cover have the same size. With `chain_le_antichain_cover`, this says the longest
+chain and the smallest antichain cover have a common size. -/
 theorem mirsky [PartialOrder α] [DecidableEq α] (s : Finset α) :
     ∃ (C : Finset α) (𝒜 : Finset (Finset α)),
       C ⊆ s ∧ IsChain (· ≤ ·) (C : Set α) ∧
@@ -581,3 +531,73 @@ theorem mirsky [PartialOrder α] [DecidableEq α] (s : Finset α) :
       · exact hM_anti
       · exact hanti' A hA
     · rw [Finset.card_insert_of_notMem hM_notin, hcard', hC_card]
+
+/-! ### Partition corollaries
+
+`dilworth` / `mirsky` produce a chain / antichain *cover*; here we refine it to a genuine
+*partition* (pairwise-disjoint pieces) of the same size, recovering the textbook decomposition
+statement. The refinement assigns each element to one of its covering sets and keeps the fibres;
+weak duality forces the number of pieces to stay equal to the size of the matching antichain /
+chain. -/
+
+/-- Any cover of `s` by finsets refines to a *pairwise-disjoint* cover (a partition) of no greater
+cardinality, with each piece contained in a member of the original cover. -/
+lemma exists_pairwiseDisjoint_cover [DecidableEq α] {s : Finset α} {𝒞 : Finset (Finset α)}
+    (hcov : s = 𝒞.biUnion id) :
+    ∃ P : Finset (Finset α), s = P.biUnion id ∧
+      (P : Set (Finset α)).PairwiseDisjoint id ∧ P.card ≤ 𝒞.card ∧
+      ∀ C ∈ P, ∃ D ∈ 𝒞, C ⊆ D := by
+  have hmem : ∀ x ∈ s, ∃ D ∈ 𝒞, x ∈ D := fun x hx => by
+    have : x ∈ 𝒞.biUnion id := hcov ▸ hx
+    simpa using this
+  choose! g hg𝒞 hgmem using hmem
+  refine ⟨𝒞.image fun D => s.filter fun y => g y = D, ?_, ?_, Finset.card_image_le, ?_⟩
+  · refine Finset.Subset.antisymm (fun x hx => Finset.mem_biUnion.mpr ?_) (fun x hx => ?_)
+    · exact ⟨s.filter fun y => g y = g x, Finset.mem_image_of_mem _ (hg𝒞 x hx),
+        Finset.mem_filter.mpr ⟨hx, rfl⟩⟩
+    · obtain ⟨P, hP, hxP⟩ := Finset.mem_biUnion.mp hx
+      obtain ⟨D, -, rfl⟩ := Finset.mem_image.mp hP
+      exact (Finset.mem_filter.mp hxP).1
+  · intro p hp q hq hpq
+    obtain ⟨D, -, rfl⟩ := Finset.mem_image.mp (Finset.mem_coe.mp hp)
+    obtain ⟨D', -, rfl⟩ := Finset.mem_image.mp (Finset.mem_coe.mp hq)
+    refine Finset.disjoint_left.mpr fun x hxD hxD' => hpq ?_
+    simp only [id_eq, Finset.mem_filter] at hxD hxD'
+    rw [show D = D' from hxD.2.symm.trans hxD'.2]
+  · intro C hC
+    obtain ⟨D, hD, rfl⟩ := Finset.mem_image.mp hC
+    exact ⟨D, hD, fun x hx => (Finset.mem_filter.mp hx).2 ▸ hgmem x (Finset.mem_filter.mp hx).1⟩
+
+/-- Dilworth's theorem, partition form: a finite subset `s` of a partial order splits into a
+pairwise-disjoint family of chains whose number equals the size of some antichain (the maximum
+antichain, by `antichain_le_chain_cover`). -/
+theorem dilworth_partition [PartialOrder α] [DecidableEq α] (s : Finset α) :
+    ∃ (A : Finset α) (𝒞 : Finset (Finset α)),
+      A ⊆ s ∧ IsAntichain (· ≤ ·) (A : Set α) ∧ s = 𝒞.biUnion id ∧
+      (𝒞 : Set (Finset α)).PairwiseDisjoint id ∧
+      (∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α)) ∧ 𝒞.card = A.card := by
+  obtain ⟨A, 𝒞₀, hAsub, hAanti, hcov, hchains, hcard⟩ := dilworth s
+  obtain ⟨𝒞, hcov', hdisj, hle, hsub⟩ := exists_pairwiseDisjoint_cover hcov
+  have hchains' : ∀ C ∈ 𝒞, IsChain (· ≤ ·) (C : Set α) := fun C hC => by
+    obtain ⟨D, hD, hCD⟩ := hsub C hC
+    exact IsChain.mono (Finset.coe_subset.mpr hCD) (hchains D hD)
+  have hge : A.card ≤ 𝒞.card :=
+    antichain_le_chain_cover hAsub hAanti (fun x hx => hcov' ▸ hx) hchains'
+  exact ⟨A, 𝒞, hAsub, hAanti, hcov', hdisj, hchains', by omega⟩
+
+/-- Mirsky's theorem, partition form: a finite subset `s` of a partial order splits into a
+pairwise-disjoint family of antichains whose number equals the size of some chain (the longest
+chain, by `chain_le_antichain_cover`). -/
+theorem mirsky_partition [PartialOrder α] [DecidableEq α] (s : Finset α) :
+    ∃ (C : Finset α) (𝒜 : Finset (Finset α)),
+      C ⊆ s ∧ IsChain (· ≤ ·) (C : Set α) ∧ s = 𝒜.biUnion id ∧
+      (𝒜 : Set (Finset α)).PairwiseDisjoint id ∧
+      (∀ A ∈ 𝒜, IsAntichain (· ≤ ·) (A : Set α)) ∧ 𝒜.card = C.card := by
+  obtain ⟨C, 𝒜₀, hCsub, hCchain, hcov, hantis, hcard⟩ := mirsky s
+  obtain ⟨𝒜, hcov', hdisj, hle, hsub⟩ := exists_pairwiseDisjoint_cover hcov
+  have hantis' : ∀ A ∈ 𝒜, IsAntichain (· ≤ ·) (A : Set α) := fun A hA => by
+    obtain ⟨D, hD, hAD⟩ := hsub A hA
+    exact (hantis D hD).subset (Finset.coe_subset.mpr hAD)
+  have hge : C.card ≤ 𝒜.card :=
+    chain_le_antichain_cover hCsub hCchain (fun x hx => hcov' ▸ hx) hantis'
+  exact ⟨C, 𝒜, hCsub, hCchain, hcov', hdisj, hantis', by omega⟩
