@@ -56,6 +56,9 @@ namespace VertexSeq
 @[simp, grind ←] lemma head_mem_toList (w : VertexSeq α) : w.head ∈ w.toList := by
   induction w <;> grind [VertexSeq.head, VertexSeq.toList]
 
+@[simp, grind ←] lemma tail_mem_toList (w : VertexSeq α) : w.tail ∈ w.toList := by
+  induction w <;> grind [VertexSeq.tail, VertexSeq.toList]
+
 /-! ## dropHead, dropTail -/
 
 @[grind] def dropHead : VertexSeq α → VertexSeq α
@@ -66,6 +69,11 @@ namespace VertexSeq
 @[grind] def dropTail : VertexSeq α → VertexSeq α
   | .singleton v => .singleton v
   | .cons w _ => w
+
+
+@[simp, grind ←] lemma dropTail_tail_mem_toList (w : VertexSeq α) : w.dropTail.tail ∈ w.toList := by
+  induction w <;> grind [VertexSeq.tail, VertexSeq.toList]
+
 
 /-! ## append, reverse, and their laws -/
 
@@ -352,8 +360,11 @@ abbrev dropTail (w : Walk α) : Walk α :=
   { seq := w.seq.dropTail
     valid := by grind [Walk]}
 
+
+
 def append_single (w : Walk α) (u : α) (h : u ≠ w.tail) : Walk α :=
   ⟨w.seq.cons u, .cons w.seq u w.valid (by aesop)⟩
+
 
 @[simp, grind =]
 lemma dropTail_head (w : Walk α) : w.dropTail.head = w.head := by
@@ -514,5 +525,15 @@ lemma isCycle_rerootCycle [DecidableEq α] (w : Walk α) (hcyc : IsCycle w)
     · have hz : w.length ≠ 0 := by omega
       grind
     · grind [append_dropTail_eq_dropTail_append]
+
+
+abbrev prepend_vertex (w : Walk α) (v : α) (h : w.head ≠ v) : Walk α :=
+  ⟨ (VertexSeq.singleton v).append w.seq, prepend_iswalk w.seq v w.valid h⟩ 
+
+
+@[grind ←]
+theorem prepend_tail_eq_tail (w : Walk α) (v : α) (h2 : w.head ≠ v) :
+  (w.prepend_vertex v h2).tail =  w.tail  := by grind
+
 
 end Walk
