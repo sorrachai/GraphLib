@@ -324,7 +324,7 @@ exists. -/
 
 /- # Sub-VertexSeq -/
 
-/- # Map, Foldl, Foldr, Zip, All, Any, nodup -/
+/- # Map, Foldl, Foldr, Zip, All, Any, nodup, nostall -/
 
 def map {β : Type*} (f : α → β) : VertexSeq α → VertexSeq β
   | .singleton v => singleton (f v)
@@ -352,25 +352,37 @@ def all (p : α → Prop) : VertexSeq α → Prop
   | .singleton v => p v
   | .cons w v    => w.all p ∧ p v
 
-/- Lemmas here, `nodup` and `non-stalling` go to path and walk module respectivley -/
+/-- The sequence has no repeated vertex. -/
+def nodup : VertexSeq α → Prop
+  | .singleton _ => True
+  | .cons w v    => w.nodup ∧ v ∉ w
+
+/-- The sequence never stalls: no two consecutive vertices are equal. -/
+def nonstalling : VertexSeq α → Prop
+  | .singleton _ => True
+  | .cons w v    => w.nonstalling ∧ w.tail ≠ v
+
+/-- A vertex sequence is *closed* when its first and last vertex coincide. -/
+def closed (w : VertexSeq α) : Prop := w.head = w.tail
+
+@[grind] lemma nodup_nonstalling [DecidableEq α] (w : VertexSeq α) :
+    w.nodup → w.nonstalling := by
+  sorry
 
 /-! ## takeWhile, dropWhile -/
 
-/-- Take the longest prefix of `w` (starting from `head`) on which the
-predicate `p` holds. The hypothesis `p w.head` ensures the result is
-non-empty. Note that `cons` is right-extending, so the *prefix* lives near
-`head` in the inductive structure. -/
-@[grind] def takeWhile (w : VertexSeq α) (p : α → Prop) [DecidablePred p]
-    (h : p w.head) : VertexSeq α :=
+/-- Take every vertex of `w` satisfying `p`, plus the first failure (if any).
+If every vertex satisfies `p`, the whole sequence is returned. -/
+@[grind] def takeWhile (w : VertexSeq α) (p : α → Prop) [DecidablePred p] :
+    VertexSeq α :=
   match w with
   | .singleton x => .singleton x
   | .cons q x =>
-    if ∃ v ∈ q.toList, ¬ p v then takeWhile q p h
-    else if p x then q :+ x else q
+    if ∃ v ∈ q.toList, ¬ p v then takeWhile q p
+    else q :+ x
 
-/-- Drop the longest prefix of `w` (starting from `head`) on which the
-predicate `p` holds. The hypothesis ensures at least one vertex fails `p`,
-so the result is non-empty. -/
+/-- Drop the longest prefix of `w` on which `p` holds; the result starts at
+the first failure. The hypothesis ensures a failure exists. -/
 @[grind] def dropWhile (w : VertexSeq α) (p : α → Prop) [DecidablePred p]
     (h : ∃ v ∈ w.toList, ¬ p v) : VertexSeq α :=
   match w with
@@ -381,12 +393,6 @@ so the result is non-empty. -/
 
 /-! ## splitAt -/
 
-/-- Append the vertex `x` to the last piece of a list of sequences. -/
-private def appendToLast : List (VertexSeq α) → α → List (VertexSeq α)
-  | [], _ => []
-  | [w], x => [w :+ x]
-  | p :: ps, x => p :: appendToLast ps x
-
 /-- Split `w` into a list of pieces at every occurrence of the vertex `v`.
 The split point `v` is *duplicated*: it appears as the tail of one piece and
 the head of the next, so that re-concatenating the pieces recovers `w`. -/
@@ -395,6 +401,11 @@ the head of the next, so that re-concatenating the pieces recovers `w`. -/
   | .cons q x, v =>
     if x = v then appendToLast (splitAt q v) v ++ [.singleton v]
     else appendToLast (splitAt q v) x
+where
+  appendToLast : List (VertexSeq α) → α → List (VertexSeq α)
+    | [], _ => []
+    | [w], x => [w :+ x]
+    | p :: ps, x => p :: appendToLast ps x
 
 /-! ## Indexing and insertion -/
 
@@ -414,32 +425,36 @@ to the right. If `i` exceeds `w.toList.length`, `v` is appended at the end. -/
 /- # Structural Manipulations -/
 
 
-/-- Self-loop erasure: scan the sequence and, whenever the current vertex
-already appears earlier, drop the intermediate detour. The result has the
-same `head` and `tail` and is `Nodup` (see `head_loopErase`, `tail_loopErase`,
-`nodup_loopErase`). -/
+/-- Remove immediate stalls (consecutive duplicate vertices). The result
+satisfies `nonstalling`. -/
 @[grind] def loopErase [DecidableEq α] : VertexSeq α → VertexSeq α
   | .singleton v => .singleton v
   | .cons w v =>
-      if h : v ∈ w.toList then
-        loopErase (takeUntil w v h)
+      if w.tail = v then loopErase w
+      else .cons (loopErase w) v
+
+@[grind] lemma loopErase_nonstalling [DecidableEq α] (w : VertexSeq α) :
+    w.loopErase.nonstalling := by
+  sorry
+
+/-- Cycle erasure: whenever a vertex repeats, drop the intermediate detour
+between its two occurrences. The result satisfies `nodup`. -/
+@[grind] def cycleErase [DecidableEq α] : VertexSeq α → VertexSeq α
+  | .singleton v => .singleton v
+  | .cons w v =>
+      if h : v ∈ w then
+        cycleErase (prefixUntil w v h)
       else
-        .cons (loopErase w) v
+        .cons (cycleErase w) v
   termination_by p => p.length
   decreasing_by
   · simp [length]
-    grind [length_takeUntil_le]
+    grind [length_prefixUntil_le]
   · simp [length]
 
-/- # Graph Conversion -/
-
-@[grind] def toSimpleGraph (w : VertexSeq α) : SimpleGraph α :=
+@[grind] lemma cycleErase_nodup [DecidableEq α] (w : VertexSeq α) :
+    w.cycleErase.nodup := by
   sorry
-
-@[grind] def toSimpleDiGraph (w : VertexSeq α) : SimpleDiGraph α :=
-  sorry
-
--- w.toSimpleGraph = w.reverse.toSimpleGraph
 
 /-! ## Functor instance -/
 
