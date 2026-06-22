@@ -57,7 +57,7 @@ private lemma sym2_of_subset_finite (S : Set α) (hS : S.Finite) :
   intro e he
   induction e with
   | h x y =>
-    refine ⟨s(⟨x, he x ?_⟩, ⟨y, he y ?_⟩), trivial, by simp [Sym2.map_pair_eq]⟩ <;> simp
+    refine ⟨s(⟨x, he x ?_⟩, ⟨y, he y ?_⟩), trivial, by simp [Sym2.map_mk]⟩ <;> simp
 
 /-- Finiteness of the vertex set transfers to the edge set. -/
 instance SimpleGraph.instFiniteEdgeSet (G : SimpleGraph α) [hfin : Finite G.vertexSet] :
@@ -172,7 +172,7 @@ subtype. -/
 private lemma SimpleGraph.vertexFinset_card_eq (G : SimpleGraph α) [Finite G.vertexSet]
     [Fintype G.vertexSet] :
     G.vertexFinset.card = Fintype.card G.vertexSet := by
-  show ((Set.toFinite (G.vertexSet)).toFinset).card = Fintype.card G.vertexSet
+  change ((Set.toFinite (G.vertexSet)).toFinset).card = Fintype.card G.vertexSet
   exact (Set.toFinite G.vertexSet).card_toFinset
 
 /-- Lift an edge of `G` to a non-diagonal `Sym2` on the vertex subtype. -/
@@ -181,9 +181,9 @@ private lemma SimpleGraph.edge_lift (G : SimpleGraph α) {e : Sym2 α} (he : e �
   induction e with
   | h x y =>
     refine ⟨s(⟨x, G.incidence' _ he x (by simp)⟩,
-              ⟨y, G.incidence' _ he y (by simp)⟩), ?_, by simp [Sym2.map_pair_eq]⟩
+              ⟨y, G.incidence' _ he y (by simp)⟩), ?_, by simp [Sym2.map_mk]⟩
     have hne : ¬ (s(x, y) : Sym2 α).IsDiag := G.loopless' _ he
-    simp [Sym2.mk_isDiag_iff, Subtype.ext_iff] at hne ⊢
+    simp only [Sym2.mk_isDiag_iff, Subtype.ext_iff] at hne ⊢
     exact hne
 
 /-- The edge set of a simple graph has size at most `C(|V|, 2)`.
@@ -221,7 +221,7 @@ theorem SimpleGraph.card_edgeFinset_le_card_choose_two
 private lemma SimpleDiGraph.vertexFinset_card_eq (G : SimpleDiGraph α) [Finite G.vertexSet]
     [Fintype G.vertexSet] :
     G.vertexFinset.card = Fintype.card G.vertexSet := by
-  show ((Set.toFinite (G.vertexSet)).toFinset).card = Fintype.card G.vertexSet
+  change ((Set.toFinite (G.vertexSet)).toFinset).card = Fintype.card G.vertexSet
   exact (Set.toFinite G.vertexSet).card_toFinset
 
 /-- The edge set of a simple directed graph has size at most `2·C(|V|, 2)`.
