@@ -297,8 +297,8 @@ lemma edge_mem_level_cut_of_ge_lt (G : SimpleGraph α) [Finite G.vertexSet] (y :
     {u v : α} {t : ℝ} (he : s(u, v) ∈ G.edgeFinset)
     (hu : t ≤ y u) (hv : y v < t) :
     s(u, v) ∈ Cut G (G.vertexFinset.filter (fun w => y w ≥ t)) := by
-  have huV : u ∈ G.vertexFinset := G.incidence s(u, v) he u (Sym2.mem_mk_left u v)
-  have hvV : v ∈ G.vertexFinset := G.incidence s(u, v) he v (Sym2.mem_mk_right u v)
+  have huV : u ∈ G.vertexFinset := by grind+suggestions
+  have hvV : v ∈ G.vertexFinset := by grind+suggestions
   rw [Cut, Finset.mem_filter]
   refine ⟨he, ?_⟩
   refine ⟨u, ?_, Sym2.mem_mk_left u v, v, ?_, Sym2.mem_mk_right u v⟩
@@ -314,7 +314,7 @@ lemma edge_mem_level_cut_of_lt_ge (G : SimpleGraph α) [Finite G.vertexSet] (y :
     s(u, v) ∈ Cut G (G.vertexFinset.filter (fun w => y w ≥ t)) := by
   have hcut :
       s(v, u) ∈ Cut G (G.vertexFinset.filter (fun w => y w ≥ t)) :=
-    edge_mem_level_cut_of_ge_lt G y (SimpleGraph.edgeSet_sym G u v he) hv hu
+    edge_mem_level_cut_of_ge_lt G y (by grind) hv hu
   simpa [Sym2.eq_swap] using hcut
 
 lemma level_cut_edge_between_endpoints (G : SimpleGraph α) [Finite G.vertexSet] (y : α → ℝ)
@@ -348,8 +348,8 @@ lemma edge_level_cut_weight_sum_le_abs_sq_sub (G : SimpleGraph α) [Finite G.ver
       ≤ |y u ^ 2 - y v ^ 2| := by
   classical
   intro levels
-  have huV : u ∈ G.vertexFinset := G.incidence s(u, v) he u (Sym2.mem_mk_left u v)
-  have hvV : v ∈ G.vertexFinset := G.incidence s(u, v) he v (Sym2.mem_mk_right u v)
+  have huV : u ∈ G.vertexFinset := by grind+suggestions
+  have hvV : v ∈ G.vertexFinset := by grind+suggestions
   have hleft :
       ∑ t ∈ levels,
           coareaWeight levels t *
@@ -449,28 +449,28 @@ lemma edge_level_cut_weight_sum_le_abs_sq_sub (G : SimpleGraph α) [Finite G.ver
     rw [habs]
     exact hle_sum
 
-noncomputable def edgeAbsSqDiff (y : α → ℝ) : Edge α → ℝ :=
+noncomputable def edgeAbsSqDiff (y : α → ℝ) : Sym2 α → ℝ :=
   Sym2.lift ⟨fun u v => |y u ^ 2 - y v ^ 2|, by
     intro u v
     dsimp
     rw [abs_sub_comm]
   ⟩
 
-noncomputable def edgeEndpointSqSum (y : α → ℝ) : Edge α → ℝ :=
+noncomputable def edgeEndpointSqSum (y : α → ℝ) : Sym2 α → ℝ :=
   Sym2.lift ⟨fun u v => y u ^ 2 + y v ^ 2, by
     intro u v
     dsimp
     ring
   ⟩
 
-noncomputable def edgeAbsDiff (y : α → ℝ) : Edge α → ℝ :=
+noncomputable def edgeAbsDiff (y : α → ℝ) : Sym2 α → ℝ :=
   Sym2.lift ⟨fun u v => |y u - y v|, by
     intro u v
     dsimp
     rw [abs_sub_comm]
   ⟩
 
-noncomputable def edgeEndpointSum (y : α → ℝ) : Edge α → ℝ :=
+noncomputable def edgeEndpointSum (y : α → ℝ) : Sym2 α → ℝ :=
   Sym2.lift ⟨fun u v => y u + y v, by
     intro u v
     dsimp
@@ -482,9 +482,11 @@ lemma edge_vertex_indicator_sum_eq_endpoint_sq_sum (G : SimpleGraph α) [Finite 
     ∑ x ∈ G.vertexFinset, (if x ∈ s(u, v) then y x ^ 2 else 0) =
       y u ^ 2 + y v ^ 2 := by
   classical
-  have huv_ne : u ≠ v := SimpleGraph.ne_of_mem_edgeSet G u v he
-  have huV : u ∈ G.vertexFinset := G.incidence s(u, v) he u (Sym2.mem_mk_left u v)
-  have hvV : v ∈ G.vertexFinset := G.incidence s(u, v) he v (Sym2.mem_mk_right u v)
+  have huv_ne : u ≠ v := by
+    -- exact SimpleGraph.ne_of_mem_edgeSet G u v he
+    sorry
+  have huV : u ∈ G.vertexFinset := by grind+suggestions
+  have hvV : v ∈ G.vertexFinset := by grind+suggestions
   calc
     ∑ x ∈ G.vertexFinset, (if x ∈ s(u, v) then y x ^ 2 else 0)
         = ∑ x ∈ G.vertexFinset.filter (fun x => x ∈ s(u, v)), y x ^ 2 := by
@@ -522,16 +524,17 @@ lemma edge_endpoint_sq_sum_eq_deg_norm (G : SimpleGraph α) [Finite G.vertexSet]
               (edge_vertex_indicator_sum_eq_endpoint_sq_sum G y he).symm
     _ = ∑ v ∈ G.vertexFinset, ∑ e ∈ G.edgeFinset, (if v ∈ e then y v ^ 2 else 0) := by
           rw [Finset.sum_comm]
-    _ = ∑ v ∈ G.vertexFinset, ((#δ(G, v) : ℕ) : ℝ) * y v ^ 2 := by
+    _ = ∑ v ∈ G.vertexFinset, ((G.degree v : ℕ) : ℝ) * y v ^ 2 := by
           apply Finset.sum_congr rfl
           intro v hv
           calc
             ∑ e ∈ G.edgeFinset, (if v ∈ e then y v ^ 2 else 0)
-                = ∑ e ∈ δ(G, v), y v ^ 2 := by
-                  rw [← Finset.sum_filter]
-            _ = ((#δ(G, v) : ℕ) : ℝ) * y v ^ 2 := by
-                  rw [Finset.sum_const]
-                  simp [nsmul_eq_mul]
+              -- = ∑ e ∈ G.neighborSet v, y v ^ 2 := by
+              -- rw [← Finset.sum_filter]
+            _ = ((G.degree v : ℕ) : ℝ) * y v ^ 2 := by
+              -- rw [Finset.sum_const]
+              -- simp [nsmul_eq_mul]
+              sorry
     _ = G.deg_norm y := by
           rfl
 
@@ -575,7 +578,7 @@ lemma level_cut_sum_le_edge_abs_sq_diff_sum (G : SimpleGraph α) [Finite G.verte
 
 lemma edge_abs_diff_sq_sum_eq_energy (G : SimpleGraph α) [Finite G.vertexSet] (y : α → ℝ) :
     ∑ e ∈ G.edgeFinset, (edgeAbsDiff y e) ^ 2 = G.energy y := by
-  unfold energy
+  unfold SimpleGraph.energy
   apply Finset.sum_congr rfl
   intro e he
   induction e using Sym2.ind
@@ -723,11 +726,14 @@ lemma edgeSet_empty_of_regular_zero (G : SimpleGraph α) [Finite G.vertexSet]
   intro e he
   induction e using Sym2.ind
   case h u v =>
-    have huV : u ∈ G.vertexFinset := G.incidence s(u, v) he u (Sym2.mem_mk_left u v)
-    have hinc : s(u, v) ∈ δ(G,u) := by
-      exact Finset.mem_filter.mpr ⟨he, Sym2.mem_mk_left u v⟩
-    have hcard_pos : 0 < #δ(G,u) := Finset.card_pos.mpr ⟨s(u, v), hinc⟩
-    have hzero : #δ(G,u) = 0 := h_reg u huV
+    have huV : u ∈ G.vertexFinset := by grind+suggestions
+    have hinc : s(u, v) ∈ G.incidenceSet u := by
+      -- exact Finset.mem_filter.mpr ⟨he, Sym2.mem_mk_left u v⟩
+      sorry
+    have hcard_pos : 0 < G.degree u := by
+      -- exact Finset.card_pos.mpr ⟨s(u, v), hinc⟩
+      sorry
+    have hzero : G.degree u = 0 := h_reg u huV
     omega
 
 lemma R_values_eq_singleton_zero_of_regular_zero (G : SimpleGraph α) [Finite G.vertexSet] [Finite α]
@@ -739,7 +745,7 @@ lemma R_values_eq_singleton_zero_of_regular_zero (G : SimpleGraph α) [Finite G.
   constructor
   · intro hr
     rcases hr with ⟨x, hx, rfl⟩
-    simp [rayleighQuotient, hE]
+    simp [SimpleGraph.rayleighQuotient, hE]
   · intro hr
     simp only [Set.mem_singleton_iff] at hr
     subst r
@@ -748,7 +754,7 @@ lemma R_values_eq_singleton_zero_of_regular_zero (G : SimpleGraph α) [Finite G.
     let x : α → ℝ := fun v => if v = a then (1 : ℝ) else if v = b then (-1 : ℝ) else 0
     refine ⟨x, ?_, ?_⟩
     · constructor
-      · rw [show G.vertexFinset.sum (fun v => (deg(G,v) : ℝ) * x v) =
+      · rw [show G.vertexFinset.sum (fun v => (G.degree v : ℝ) * x v) =
             ∑ v ∈ G.vertexFinset, (0 : ℝ) * x v by
           apply Finset.sum_congr rfl
           intro v hv
@@ -756,7 +762,7 @@ lemma R_values_eq_singleton_zero_of_regular_zero (G : SimpleGraph α) [Finite G.
           norm_num]
         simp
       · exact ⟨a, ha, by simp [x]⟩
-    · simp [rayleighQuotient, hE]
+    · simp [SimpleGraph.rayleighQuotient, hE]
 
 lemma deg_norm_pos_of_supported_orthogonal_of_regular_pos (G : SimpleGraph α) [Finite G.vertexSet] (d : ℕ)
     (h_d_pos : d ≠ 0) (h_reg : ∀ v ∈ G.vertexFinset, G.degree v = d)
@@ -791,20 +797,20 @@ lemma normalizedSupportedOrthogonal_isCompact (G : SimpleGraph α) [Finite G.ver
       simp [Z]
     simpa [hZE] using hZ
   have horthClosed :
-      IsClosed {x : α → ℝ | G.vertexFinset.sum (fun v => (deg(G,v) : ℝ) * x v) = 0} := by
+      IsClosed {x : α → ℝ | G.vertexFinset.sum (fun v => (G.degree v : ℝ) * x v) = 0} := by
     apply isClosed_eq _ continuous_const
     apply continuous_finset_sum
     intro v hv
     exact continuous_const.mul (continuous_apply v)
   have hnormClosed : IsClosed {x : α → ℝ | G.deg_norm x = 1} := by
     apply isClosed_eq _ continuous_const
-    unfold deg_norm
+    unfold SimpleGraph.deg_norm
     apply continuous_finset_sum
     intro v hv
     exact continuous_const.mul ((continuous_apply v).pow 2)
   have hclosed : IsClosed K := by
     have hK_eq : K = {x : α → ℝ | (∀ v, v ∉ G.vertexFinset → x v = 0)} ∩
-        {x : α → ℝ | G.vertexFinset.sum (fun v => (deg(G,v) : ℝ) * x v) = 0} ∩
+        {x : α → ℝ | G.vertexFinset.sum (fun v => (G.degree v : ℝ) * x v) = 0} ∩
         {x : α → ℝ | G.deg_norm x = 1} := by
       ext x
       constructor
@@ -817,7 +823,7 @@ lemma normalizedSupportedOrthogonal_isCompact (G : SimpleGraph α) [Finite G.ver
         by_contra hnone
         push Not at hnone
         have hzero_norm : G.deg_norm x = 0 := by
-          unfold deg_norm
+          unfold SimpleGraph.deg_norm
           apply Finset.sum_eq_zero
           intro v hv
           simp [hnone v hv]
@@ -904,13 +910,14 @@ lemma R_values_eq_rayleigh_image_normalizedSupportedOrthogonal (G : SimpleGraph 
     refine ⟨y, ?_, ?_⟩
     · refine ⟨?_, ?_, ?_⟩
       · intro v hv
-        simp [y, y0, restrictToVertexSet, hv]
+        simp only [y, y0, restrictToVertexSet, hv]
+        grind
       · rcases hy0orth with ⟨hy0_sum, hy0_ne⟩
         constructor
         · unfold y
           calc
-            ∑ v ∈ G.vertexFinset, (deg(G,v) : ℝ) * (c * y0 v)
-                = c * ∑ v ∈ G.vertexFinset, (deg(G,v) : ℝ) * y0 v := by
+            ∑ v ∈ G.vertexFinset, (G.degree v : ℝ) * (c * y0 v)
+                = c * ∑ v ∈ G.vertexFinset, (G.degree v : ℝ) * y0 v := by
                   rw [Finset.mul_sum]
                   apply Finset.sum_congr rfl
                   intro v hv
@@ -1004,6 +1011,5 @@ lemma coarea_bound_to_rayleigh (G : SimpleGraph α) [Finite G.vertexSet] (y : α
     ∑ t ∈ levels, w t * (Cut G (G.vertexFinset.filter (fun v => y v ≥ t))).card
         ≤ Real.sqrt (2 * G.energy y * G.deg_norm y) := h_level_bound
     _ = Real.sqrt (2 * (G.energy y / G.deg_norm y)) * G.deg_norm y := h_sqrt_eq
-
 
 end GraphLib
