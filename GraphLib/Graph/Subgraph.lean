@@ -150,10 +150,6 @@ instance {α : Type*} :
     GetElem (SimpleDiGraph α) (Set α) (SimpleDiGraph α) (fun _ _ => True) where
   getElem G S _ := G.induce S
 
-notation G ≤ H
-notation G < H
-notation G \ e
-notation G - v
 
 end Notation
 
