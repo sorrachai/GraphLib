@@ -1,7 +1,8 @@
 /-
-Copyright (c) 2026 Basil Rohner. All rights reserved.
+Copyright (c) 2026 GraphLib working group. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Basil Rohner, Sorrachai Yingchareonthawornchai, Weixuan Yuan
+Authors: Basil Rohner, Sorrachai Yingchareonthawornchai, Weixuan Yuan,
+         Huang.JiangYi (co/ Claude Opus 5)
 -/
 import Mathlib.Data.Sym.Sym2
 import GraphLib.Graph.Basic
@@ -70,13 +71,16 @@ namespace Walk
     (w.cons u e).tail = u := rfl
 
 /-- The `head` belongs to the underlying vertex list. -/
-@[simp, grind] lemma head_mem (w : Walk α ε) : w.head ∈ w.toVertexList := by
+@[simp, grind .] lemma head_mem (w : Walk α ε) : w.head ∈ w.toVertexList := by
   induction w with
   | singleton _ => simp [head, toVertexList]
-  | cons w _ _ ih => simp [head, toVertexList]; exact Or.inl ih
+  | cons w _ _ ih =>
+    simp only [head_cons]
+    rw [toVertexList, List.concat_eq_append]
+    exact List.mem_append_left _ ih
 
 /-- The `tail` belongs to the underlying vertex list. -/
-@[simp, grind] lemma tail_mem (w : Walk α ε) : w.tail ∈ w.toVertexList := by
+@[simp, grind .] lemma tail_mem (w : Walk α ε) : w.tail ∈ w.toVertexList := by
   cases w with
   | singleton _ => simp [tail, toVertexList]
   | cons _ _ _ => simp [tail, toVertexList]
@@ -103,7 +107,7 @@ the separate notation `∈ₑ` (defined below) because Lean's `Membership` class
 has `outParam` on the element type and disallows two instances. -/
 instance : Membership α (Walk α ε) := ⟨fun w v ↦ v ∈ w.toVertexList⟩
 
-@[simp, grind] theorem mem_def {v : α} (w : Walk α ε) :
+@[simp, grind =] theorem mem_def {v : α} (w : Walk α ε) :
     v ∈ w ↔ v ∈ w.toVertexList := Iff.rfl
 
 /-- Edge membership predicate. -/
@@ -111,7 +115,7 @@ def hasEdge (w : Walk α ε) (e : ε) : Prop := e ∈ w.toEdgeList
 
 scoped infix:50 " ∈ₑ " => fun e w => Walk.hasEdge w e
 
-@[simp, grind] theorem mem_edge_def (e : ε) (w : Walk α ε) :
+@[simp, grind =] theorem mem_edge_def (e : ε) (w : Walk α ε) :
     e ∈ₑ w ↔ e ∈ w.toEdgeList := Iff.rfl
 
 @[simp] lemma mem_cons_vertex (v u : α) (e : ε) (w : Walk α ε) :
@@ -131,7 +135,7 @@ instance [DecidableEq ε] (e : ε) (w : Walk α ε) : Decidable (e ∈ₑ w) :=
 instance : HasSubset (Walk α ε) :=
   ⟨fun w1 w2 ↦ (∀ v : α, v ∈ w1 → v ∈ w2) ∧ (∀ e : ε, e ∈ₑ w1 → e ∈ₑ w2)⟩
 
-@[simp, grind] theorem subset_def {w1 w2 : Walk α ε} :
+@[simp, grind =] theorem subset_def {w1 w2 : Walk α ε} :
     w1 ⊆ w2 ↔ (∀ v : α, v ∈ w1 → v ∈ w2) ∧ (∀ e : ε, e ∈ₑ w1 → e ∈ₑ w2) :=
   Iff.rfl
 
@@ -140,7 +144,7 @@ instance : HasSubset (Walk α ε) :=
 /-- Drop the first vertex (and its outgoing edge). -/
 @[grind] def dropHead : Walk α ε → Walk α ε
   | .singleton v => .singleton v
-  | .cons (.singleton _) v e => .singleton v
+  | .cons (.singleton _) v _ => .singleton v
   | .cons w v e => .cons w.dropHead v e
 
 /-- Drop the last vertex (and its incoming edge). -/
@@ -389,8 +393,7 @@ commutes. -/
 @[simp, grind =] lemma toVertexSeq_nodup (w : Walk α ε) :
     w.toVertexSeq.nodup ↔ w.nodup := by
   induction w <;>
-    grind [toVertexSeq, nodup, VertexSeq.nodup, mem_def, VertexSeq.mem_def,
-           toVertexSeq_toList]
+    grind [toVertexSeq, nodup, VertexSeq.nodup, toVertexSeq_toList]
 
 @[simp, grind =] lemma toVertexSeq_nonstalling (w : Walk α ε) :
     w.toVertexSeq.nonstalling ↔ w.nonstalling := by
@@ -425,14 +428,17 @@ def toGraph (w : Walk α ε) : Graph α ε where
     induction w with
     | singleton _ => simp [edges] at he
     | cons w' u e' ih =>
-      simp [edges] at he
+      simp only [Set.mem_setOf_eq, edges,
+        List.concat_eq_append, List.mem_append, List.mem_cons,
+        List.not_mem_nil, or_false] at he
       rcases he with he_old | he_new
       · -- e came from a smaller walk
         have hv' : v ∈ w'.toVertexList := ih he_old
-        simp [toVertexList]; left; exact hv'
+        simp only [toVertexList, List.concat_eq_append, List.mem_append]
+        left; exact hv'
       · subst he_new
         -- e is the new edge ⟨e', s(w'.tail, u)⟩
-        simp [Sym2.mem_iff] at hv
+        simp only [Sym2.mem_iff] at hv
         rcases hv with rfl | rfl
         · simp [toVertexList]
         · simp [toVertexList]
@@ -447,12 +453,15 @@ def toDiGraph (w : Walk α ε) : DiGraph α ε where
     induction w with
     | singleton _ => simp [arcs] at ha
     | cons w' u e' ih =>
-      simp [arcs] at ha
+      simp only [Set.mem_setOf_eq, arcs,
+        List.concat_eq_append, List.mem_append, List.mem_cons,
+        List.not_mem_nil, or_false] at ha
       rcases ha with ha_old | ha_new
       · obtain ⟨h1, h2⟩ := ih ha_old
+        simp only [toVertexList, List.concat_eq_append, List.mem_append]
         refine ⟨?_, ?_⟩
-        · simp [toVertexList]; left; exact h1
-        · simp [toVertexList]; left; exact h2
+        · left; exact h1
+        · left; exact h2
       · subst ha_new
         refine ⟨?_, ?_⟩
         · simp [toVertexList]

@@ -1,10 +1,10 @@
 /-
-Copyright (c) 2026 Basil Rohner. All rights reserved.
+Copyright (c) 2026 GraphLib working group. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Basil Rohner, Sorrachai Yingchareonthawornchai, Weixuan Yuan
+Authors: Basil Rohner, Sorrachai Yingchareonthawornchai, Weixuan Yuan,
+         Huang.JiangYi (co/ Claude Opus 5)
 -/
-import GraphLib.Graph.Basic
-import GraphLib.Theory.Structures.SimpleWalk
+import GraphLib.Theory.Connectivity.Reachable
 import GraphLib.Theory.Structures.Forest
 
 /-!
@@ -15,9 +15,16 @@ of vertices is joined by a (necessarily unique) walk.
 
 ## Main definitions
 
-* `SimpleGraph.IsConnected G` — every two vertices of `G` are joined by a
-  simple walk in `G`.
 * `SimpleGraph.IsTree G` — `G` is a connected forest.
+
+## Implementation notes
+
+Connectedness itself is not defined here. `SimpleGraph.IsConnected` lives in
+`GraphLib.Theory.Connectivity.Reachable`, where it is built on
+`SimpleGraph.Reachable` and comes with the full component API. This file previously
+carried a second, standalone definition of `IsConnected` phrased over the now-retired
+`SimpleGraph.Contains`; it has been removed in favour of the canonical one, so that
+there is a single notion of connectedness in the library.
 -/
 
 open GraphLib
@@ -26,14 +33,17 @@ variable {α : Type*}
 
 namespace GraphLib.SimpleGraph
 
-/-- `G` is *connected* if every two vertices of `G` are linked by some
-simple walk inside `G`. -/
-def IsConnected (G : SimpleGraph α) : Prop :=
-  ∀ u v, u ∈ G.vertexSet → v ∈ G.vertexSet →
-    ∃ w : SimpleWalk α, G.Contains w ∧ w.val.head = u ∧ w.val.tail = v
-
 /-- `G` is a *tree* if it is a connected forest. -/
 def IsTree (G : SimpleGraph α) : Prop :=
   G.IsForest ∧ G.IsConnected
+
+/-- A tree is a forest. -/
+lemma IsTree.isForest {G : SimpleGraph α} (h : G.IsTree) : G.IsForest := h.1
+
+/-- A tree is connected. -/
+lemma IsTree.isConnected {G : SimpleGraph α} (h : G.IsTree) : G.IsConnected := h.2
+
+/-- A tree has at least one vertex. -/
+lemma IsTree.nonempty {G : SimpleGraph α} (h : G.IsTree) : V(G).Nonempty := h.2.1
 
 end GraphLib.SimpleGraph

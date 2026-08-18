@@ -1,7 +1,7 @@
 /-
-Copyright (c) 2026 Basil Rohner. All rights reserved.
+Copyright (c) 2026 GraphLib working group. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Basil Rohner
+Authors: Basil Rohner, Huang.JiangYi (co/ Claude Opus 5)
 -/
 import Mathlib.Algebra.Group.Nat.Even
 import Mathlib.Data.Nat.Choose.Basic
@@ -57,7 +57,7 @@ private lemma sym2_of_subset_finite (S : Set α) (hS : S.Finite) :
   intro e he
   induction e with
   | h x y =>
-    refine ⟨s(⟨x, he x ?_⟩, ⟨y, he y ?_⟩), trivial, by simp [Sym2.map_pair_eq]⟩ <;> simp
+    refine ⟨s(⟨x, he x ?_⟩, ⟨y, he y ?_⟩), trivial, by simp [Sym2.map_mk]⟩ <;> simp
 
 /-- Finiteness of the vertex set transfers to the edge set. -/
 instance SimpleGraph.instFiniteEdgeSet (G : SimpleGraph α) [hfin : Finite G.vertexSet] :
@@ -172,7 +172,7 @@ subtype. -/
 private lemma SimpleGraph.vertexFinset_card_eq (G : SimpleGraph α) [Finite G.vertexSet]
     [Fintype G.vertexSet] :
     G.vertexFinset.card = Fintype.card G.vertexSet := by
-  show ((Set.toFinite (G.vertexSet)).toFinset).card = Fintype.card G.vertexSet
+  change ((Set.toFinite (G.vertexSet)).toFinset).card = Fintype.card G.vertexSet
   exact (Set.toFinite G.vertexSet).card_toFinset
 
 /-- Lift an edge of `G` to a non-diagonal `Sym2` on the vertex subtype. -/
@@ -181,9 +181,9 @@ private lemma SimpleGraph.edge_lift (G : SimpleGraph α) {e : Sym2 α} (he : e �
   induction e with
   | h x y =>
     refine ⟨s(⟨x, G.incidence' _ he x (by simp)⟩,
-              ⟨y, G.incidence' _ he y (by simp)⟩), ?_, by simp [Sym2.map_pair_eq]⟩
+              ⟨y, G.incidence' _ he y (by simp)⟩), ?_, by simp [Sym2.map_mk]⟩
     have hne : ¬ (s(x, y) : Sym2 α).IsDiag := G.loopless' _ he
-    simp [Sym2.mk_isDiag_iff, Subtype.ext_iff] at hne ⊢
+    simp only [Sym2.mk_isDiag_iff, Subtype.mk.injEq, ne_eq]
     exact hne
 
 /-- The edge set of a simple graph has size at most `C(|V|, 2)`.
@@ -221,7 +221,7 @@ theorem SimpleGraph.card_edgeFinset_le_card_choose_two
 private lemma SimpleDiGraph.vertexFinset_card_eq (G : SimpleDiGraph α) [Finite G.vertexSet]
     [Fintype G.vertexSet] :
     G.vertexFinset.card = Fintype.card G.vertexSet := by
-  show ((Set.toFinite (G.vertexSet)).toFinset).card = Fintype.card G.vertexSet
+  change ((Set.toFinite (G.vertexSet)).toFinset).card = Fintype.card G.vertexSet
   exact (Set.toFinite G.vertexSet).card_toFinset
 
 /-- The edge set of a simple directed graph has size at most `2·C(|V|, 2)`.
@@ -333,13 +333,13 @@ def SimpleDiGraph.computeEdgeFinset (G : SimpleDiGraph α)
     {e : Sym2 α} : e ∈ G.computeEdgeFinset ↔ e ∈ G.edgeSet := by
   classical
   simp only [computeEdgeFinset, Finset.mem_filter, Finset.mem_image,
-    Finset.mem_sym2_iff, Finset.mem_univ, true_and]
+    Finset.mem_sym2_iff, Finset.mem_univ]
   refine ⟨fun h => h.2, fun he => ⟨?_, he⟩⟩
   induction e with
   | h x y =>
     refine ⟨s(⟨x, G.incidence' _ he x (by simp)⟩,
               ⟨y, G.incidence' _ he y (by simp)⟩),
-            ?_, by simp [Sym2.map_pair_eq]⟩
+            ?_, by simp [Sym2.map_mk]⟩
     intro a ha
     simp only [Sym2.mem_iff] at ha
     rcases ha with rfl | rfl <;> simp
@@ -365,6 +365,33 @@ lemma SimpleDiGraph.computeEdgeFinset_eq_edgeFinset (G : SimpleDiGraph α)
     [DecidableEq α] [Fintype G.vertexSet] [DecidablePred (· ∈ G.edgeSet)] :
     G.computeEdgeFinset = G.edgeFinset := by
   ext e; simp
+
+/-! ### Coercions back to the sets
+
+The `Finset` views coerce back to the very sets they were built from. These are the
+lemmas that let a statement phrased with `V(G)` / `E(G)` — as every connectivity
+predicate is — be discharged from the `Finset` layer, so the right-hand sides use the
+notation deliberately. -/
+
+@[simp] lemma SimpleGraph.coe_computeVertexFinset (G : SimpleGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] :
+    (G.computeVertexFinset : Set α) = V(G) :=
+  Set.ext fun _ => G.mem_computeVertexFinset
+
+@[simp] lemma SimpleDiGraph.coe_computeVertexFinset (G : SimpleDiGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] :
+    (G.computeVertexFinset : Set α) = V(G) :=
+  Set.ext fun _ => G.mem_computeVertexFinset
+
+@[simp] lemma SimpleGraph.coe_computeEdgeFinset (G : SimpleGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] [DecidablePred (· ∈ G.edgeSet)] :
+    (G.computeEdgeFinset : Set (Sym2 α)) = E(G) :=
+  Set.ext fun _ => G.mem_computeEdgeFinset
+
+@[simp] lemma SimpleDiGraph.coe_computeEdgeFinset (G : SimpleDiGraph α)
+    [DecidableEq α] [Fintype G.vertexSet] [DecidablePred (· ∈ G.edgeSet)] :
+    (G.computeEdgeFinset : Set (α × α)) = E(G) :=
+  Set.ext fun _ => G.mem_computeEdgeFinset
 
 /-! ## Convenience: `[Finite V(G)]` is enough
 

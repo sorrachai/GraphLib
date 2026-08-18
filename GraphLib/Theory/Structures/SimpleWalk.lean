@@ -1,7 +1,8 @@
 /-
-Copyright (c) 2026 Basil Rohner. All rights reserved.
+Copyright (c) 2026 GraphLib working group. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Basil Rohner, Sorrachai Yingchareonthawornchai, Weixuan Yuan
+Authors: Basil Rohner, Sorrachai Yingchareonthawornchai, Weixuan Yuan,
+         Huang.JiangYi (co/ Claude Opus 5)
 -/
 import GraphLib.Graph.Basic
 import GraphLib.Theory.Structures.VertexSeq
@@ -119,6 +120,24 @@ def glue (p q : SimpleWalk α) (h : p.val.tail = q.val.head) : SimpleWalk α :=
             cases s <;> simpa [VertexSeq.dropTail, VertexSeq.tail] using hs.2
       exact (VertexSeq.nonstalling_append p.val.dropTail q.val).2
         ⟨hpns, q.nonstalling, hjoin⟩⟩
+
+/-- Gluing does not move the head: the duplicated joining vertex dropped from `p`
+is its tail, never its head. In the degenerate case where `p` is a single vertex
+the result is `q`, whose head is that same vertex. -/
+@[simp, grind =] lemma head_glue (p q : SimpleWalk α) (h : p.val.tail = q.val.head) :
+    (p.glue q h).head = p.head := by
+  rw [SimpleWalk.glue]
+  split <;> rename_i hp
+  · exact ((VertexSeq.head_eq_tail_of_length_zero p.val hp).trans h).symm
+  · exact (VertexSeq.head_append _ _).trans (VertexSeq.head_dropTail p.val)
+
+/-- Gluing does not move the tail: the result ends where `q` ends. -/
+@[simp, grind =] lemma tail_glue (p q : SimpleWalk α) (h : p.val.tail = q.val.head) :
+    (p.glue q h).tail = q.tail := by
+  rw [SimpleWalk.glue]
+  split
+  · rfl
+  · exact VertexSeq.tail_append _ _
 
 /-! ## reverse -/
 

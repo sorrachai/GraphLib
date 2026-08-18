@@ -1,7 +1,8 @@
 /-
-Copyright (c) 2026 Basil Rohner. All rights reserved.
+Copyright (c) 2026 GraphLib working group. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Basil Rohner, Sorrachai Yingchareonthawornchai, Weixuan Yuan
+Authors: Basil Rohner, Sorrachai Yingchareonthawornchai, Weixuan Yuan,
+         Huang.JiangYi (co/ Claude Opus 5)
 -/
 import GraphLib.Theory.Structures.VertexSeq.Subseq
 
@@ -89,6 +90,12 @@ between its two occurrences. The result satisfies `nodup`. -/
 @[grind =] lemma tail_cycleErase [DecidableEq α] (w : VertexSeq α) :
     w.cycleErase.tail = w.tail := by
   fun_induction cycleErase w <;> grind [tail_prefixUntil]
+
+/-- `cycleErase` preserves the head vertex. Erasure only ever replaces a sequence
+by one of its `prefixUntil` cuts, and those keep the head. -/
+@[grind =] lemma head_cycleErase [DecidableEq α] (w : VertexSeq α) :
+    w.cycleErase.head = w.head := by
+  fun_induction cycleErase w <;> grind [head_prefixUntil]
 
 /-- Membership in `cycleErase` implies membership in the original sequence. -/
 @[grind] lemma cycleErase_subset [DecidableEq α] (w : VertexSeq α) :
